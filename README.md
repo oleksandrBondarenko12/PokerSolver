@@ -4,26 +4,22 @@
 **Poker Solver UI** is a modern graphical application designed to visualize and interact with advanced poker strategy data. Built with Qt6 and styled with inspiration from Tailwind CSS, this tool presents an intuitive interface that dynamically adapts to your viewport. The project is configured with CMake, ensuring a smooth cross-platform build process.
 
 ## Current Design Status 🎨
-
-Below are the current design mockups for the main components of the application:
+Below are the current design mockups of the main application components:
 
 ### Main Window
-![Main Window Design](images/mockups/main-window.png)
-*The main application window with solver parameters and controls*
+![Main Window Design](images/screenshots/main-window.png)
+*Current implementation of the main solver configuration window*
 
 ### Range Selector
-![Range Selector Design](images/mockups/range-selector.png)
-*The range selector dialog for choosing poker hand ranges*
+![Range Selector Design](images/screenshots/range-selector.png)
+*Range selection dialog for configuring poker hand ranges*
 
 ### Strategy Explorer
-![Strategy Explorer Design](images/mockups/strategy-explorer.png)
-*The strategy explorer showing hand matrices and analysis*
-
-> Note: These are the current design mockups. The actual implementation is in progress, following these design patterns while incorporating user feedback and technical requirements.
+![Strategy Explorer Design](images/screenshots/strategy-explorer.png)
+*Strategy visualization window showing the dynamic hand matrix*
 
 ## Table of Contents 📚
 - [Overview](#overview-)
-- [Current Design Status](#current-design-status-)
 - [Features](#features-)
 - [Project Structure](#project-structure-)
 - [Installation & Build](#installation--build-)
@@ -50,6 +46,11 @@ Below are the current design mockups for the main components of the application:
 ```
 PokerSolver/
 ├── CMakeLists.txt          # CMake build configuration
+├── images
+│   └── screenshots         # Application screenshots and design references
+│       ├── main-window.png
+│       ├── range-selector.png
+│       └── strategy-explorer.png
 ├── main.cpp                # Application entry point
 ├── MainWindow.cpp          # Main Window implementation (UI integration)
 ├── MainWindow.h            # Main Window declaration
