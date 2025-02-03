@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Strategy Explorer</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white p-4 min-h-screen">
+  <div class="grid grid-cols-[1fr,1.2fr] gap-6">
+    <!-- Left Column -->
+    <div class="space-y-6">
+      <!-- Game Tree Panel -->
+      <div class="bg-gray-800 rounded p-4">
+        <h2 class="text-sm mb-3">Game Tree</h2>
+        <div class="font-mono text-sm">
+          <div class="bg-blue-600 p-1">⊟ FLOP begin</div>
+          <div class="ml-4 space-y-1">
+            <div>⊞ OOP CHECK</div>
+            <div>⊞ OOP BET 25</div>
+            <div>⊞ OOP BET 200</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Selectors -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div class="text-gray-400 text-sm mb-1">Turn card:</div>
+          <div class="bg-gray-700 p-2 rounded flex justify-between items-center">
+            2♠ <span class="text-gray-400">▼</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-gray-400 text-sm mb-1">River card:</div>
+          <div class="bg-gray-700 p-2 rounded flex justify-between items-center">
+            2♦ <span class="text-gray-400">▼</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hand Matrix (Generated via script) -->
+      <div class="hand-matrix"></div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="space-y-6">
+      <!-- Hand Strategy Grid -->
+      <div class="grid grid-cols-4 gap-1">
+        <div class="bg-green-500 p-2 rounded text-xs">
+          <div class="mb-1">A♣7♣</div>
+          <div>CHECK: 100.0%</div>
+          <div>BET 25: 0.0%</div>
+          <div>BET 200: 0.0%</div>
+        </div>
+        <div class="bg-green-500 p-2 rounded text-xs">
+          <div class="mb-1">A♣7♥</div>
+          <div>CHECK: 100.0%</div>
+          <div>BET 25: 0.0%</div>
+          <div>BET 200: 0.0%</div>
+        </div>
+        <div class="bg-green-500 p-2 rounded text-xs">
+          <div class="mb-1">A♣7♦</div>
+          <div>CHECK: 99.2%</div>
+          <div>BET 25: 0.8%</div>
+          <div>BET 200: 0.0%</div>
+        </div>
+        <div class="bg-green-500 p-2 rounded text-xs">
+          <div class="mb-1">A♣7♠</div>
+          <div>CHECK: 100.0%</div>
+          <div>BET 25: 0.0%</div>
+          <div>BET 200: 0.0%</div>
+        </div>
+      </div>
+
+      <!-- Rough Strategy, Board Info & Range Controls -->
+      <div>
+        <!-- Rough Strategy -->
+        <div>
+          <h2 class="text-sm mb-2">Rough Strategy</h2>
+          <div class="grid grid-cols-3 gap-1">
+            <div class="bg-green-500 p-2">
+              <div class="font-bold">CHECK</div>
+              <div>98.9%</div>
+              <div class="text-sm opacity-80">273.2 combos</div>
+            </div>
+            <div class="bg-red-300 p-2">
+              <div class="font-bold">BET 25.0</div>
+              <div>1.1%</div>
+              <div class="text-sm opacity-80">3.0 combos</div>
+            </div>
+            <div class="bg-red-500 p-2">
+              <div class="font-bold">BET 200.0</div>
+              <div>0.0%</div>
+              <div class="text-sm opacity-80">0.0 combos</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Board Info -->
+        <div class="space-y-1 text-sm">
+          <div>
+            <span class="text-gray-400">board: </span>
+            Q♠ J♥ 2♥
+          </div>
+          <div class="text-gray-400">OOP decision node</div>
+        </div>
+
+        <!-- Range & Strategy Controls -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-gray-400 text-sm mb-2">Range:</div>
+            <div class="space-y-1">
+              <button class="w-full bg-gray-700 p-2 rounded text-sm">IP</button>
+              <button class="w-full bg-gray-700 p-2 rounded text-sm">OOP</button>
+            </div>
+          </div>
+          <div>
+            <div class="text-gray-400 text-sm mb-2">Strategy & EVs:</div>
+            <div class="space-y-1">
+              <button class="w-full bg-gray-700 p-2 rounded text-sm">strategy</button>
+              <button class="w-full bg-gray-700 p-2 rounded text-sm">EV + strategy</button>
+              <button class="w-full bg-gray-700 p-2 rounded text-sm">EV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script to dynamically generate the hand matrix table -->
+  <script>
+    const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+    
+    // Define activeCells exactly as in your TSX file
+    const activeCells = {
+      'AQs': true, 'AJs': true, 'ATs': true, 'A9s': true, 'A8s': true, 'A7s': true,
+      'A6s': true, 'A5s': true, 'A4s': true, 'A3s': true, 'A2s': true,
+      'AKo': true, 'KQs': true, 'KJs': true, 'KTs': true, 'K9s': true, 'K8s': true,
+      'K7s': true, 'K6s': true, 'K5s': true, 'K4s': true, 'K3s': true, 'K2s': true,
+      'AQo': true, 'KQo': true, 'QQ': true, 'QJs': true, 'QTs': true, 'Q9s': true,
+      'Q8s': true, 'Q7s': true, 'Q6s': true, 'Q5s': true, 'Q4s': true, 'Q3s': true,
+      'AJo': true, 'KJo': true, 'QJo': true, 'JJ': true, 'JTs': true, 'J9s': true,
+      'J8s': true, 'J7s': true, 'J6s': true, 'J5s': true,
+      'ATo': true, 'KTo': true, 'QTo': false, 'JTo': true, 'TT': true, 'T9s': true,
+      'T8s': true, 'T7s': true,
+      '99': true, '98s': true, '88': true, '87s': true,
+      '77': true, 'K2s': true, '76s': true, '65s': true,
+      '66': true, '55': true, '54s': true, '44': true, '43s': true,
+      '33': true, '32s': true, '22': true
+    };
+    
+    // Create table element for the hand matrix
+    const table = document.createElement('table');
+    table.className = 'w-full border-collapse bg-gray-700';
+    const tbody = document.createElement('tbody');
+    
+    for (let i = 0; i < ranks.length; i++) {
+      const tr = document.createElement('tr');
+      for (let j = 0; j < ranks.length; j++) {
+        const td = document.createElement('td');
+        td.className = 'border border-gray-700 aspect-square p-0.5 text-xs text-center';
+        const hand = ranks[i] + ranks[j] + (i === j ? '' : (i < j ? 's' : 'o'));
+        const isActive = activeCells[hand];
+        const isRed = (hand === '22' || hand === 'K2s');
+        td.className += isActive ? ' bg-green-500' : ' bg-gray-600';
+        if (isRed) {
+          td.className += ' bg-red-500';
+        }
+        td.textContent = hand;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    
+    const matrixElement = document.querySelector('.hand-matrix');
+    if (matrixElement) {
+      matrixElement.replaceWith(table);
+    }
+  </script>
+</body>
+</html>

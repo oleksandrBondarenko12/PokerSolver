@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Range Selector</title>
+  <!-- Include Tailwind CSS (or your preferred stylesheet) -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900">
+  <div class="bg-gray-900 p-4 rounded-lg">
+    <!-- Improved range selector header -->
+    <div class="bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-gray-100">Range Selector – IP</h2>
+      <button class="text-gray-400 hover:text-gray-200">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Better range input styling -->
+    <div class="p-4">
+      <textarea 
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-white"
+        rows="3"
+      >QQ:0.5,JJ:0.75,TT,99,88,77,66,55,44,33,22,AKo:0.25,AQs,AQo:0.75,AJs,AJo:0.75,ATs,ATo:0.75,A9s,A8s,A7s,A6s,A5s,A4s,A3s,A2s,KQ,KJ,KTs,KTo:0.5,K9s,K8s,K7s,K6s,K5s,K4s:0.5,K3s:0.5,K2s:0.5,QJ,QTs,Q9s,Q8s,Q7s,JTs,JTo:0.5,J9s,J8s,T9s,T8s,T7s,98s,97s,96s,87s,86s,76s,75s,65s,64s,54s,53s,43s</textarea>
+    </div>
+
+    <!-- Range Slider -->
+    <div class="flex items-center space-x-2 mb-4">
+      <span class="text-gray-300">.000</span>
+      <input type="range" class="flex-grow h-2 bg-gray-700 rounded-lg appearance-none" min="0" max="1000" step="1">
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="flex space-x-2 mb-4">
+      <button class="px-4 py-2 bg-blue-600 text-white rounded text-sm">Confirm</button>
+      <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">Cancel</button>
+      <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">Clear range</button>
+      <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">Export Range</button>
+      <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">Import Range</button>
+      <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">Open Range Folder</button>
+    </div>
+
+    <!-- Rendered Hand Range Table -->
+    <div class="overflow-auto">
+      <table class="border-collapse bg-gray-700">
+        <tbody>
+          <!-- Row 0: A -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AA</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AKo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AQo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AJo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">ATo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A9o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A8o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A7o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A6o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A5o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A4o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A3o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A2o</td>
+          </tr>
+          <!-- Row 1: K -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AKs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">KK</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">KQo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">KJo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">KTo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K9o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K8o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K7o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K6o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K5o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K4o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K3o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K2o</td>
+          </tr>
+          <!-- Row 2: Q -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AQs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">KQs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">QQ</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">JQo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">TQo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">9Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">8Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">7Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">6Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">5Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">4Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">3Qo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">2Qo</td>
+          </tr>
+          <!-- Row 3: J -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">AJs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">KJs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">QJs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">JJ</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">TJo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">9Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">8Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">7Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">6Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">5Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">4Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">3Jo</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">2Jo</td>
+          </tr>
+          <!-- Row 4: T -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">ATs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">KTs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">QTs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">JTs</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">TT</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">9To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">8To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">7To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">6To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">5To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">4To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">3To</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">2To</td>
+          </tr>
+          <!-- Row 5: 9 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A9s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K9s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q9s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J9s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T9s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">99</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">89o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">79o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">69o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">59o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">49o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">39o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">29o</td>
+          </tr>
+          <!-- Row 6: 8 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A8s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K8s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q8s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J8s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T8s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">98s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">88</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">78o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">68o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">58o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">48o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">38o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">28o</td>
+          </tr>
+          <!-- Row 7: 7 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A7s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K7s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q7s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J7s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T7s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">97s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">87s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">77</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">67o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">57o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">47o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">37o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">27o</td>
+          </tr>
+          <!-- Row 8: 6 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A6s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K6s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q6s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J6s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T6s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">96s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">86s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">76s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">66</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">56o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">46o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">36o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">26o</td>
+          </tr>
+          <!-- Row 9: 5 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A5s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K5s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q5s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J5s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T5s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">95s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">85s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">75s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">65s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">55</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">45o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">35o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">25o</td>
+          </tr>
+          <!-- Row 10: 4 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A4s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K4s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q4s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J4s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T4s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">94s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">84s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">74s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">64s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">54s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">44</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">34o</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">24o</td>
+          </tr>
+          <!-- Row 11: 3 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A3s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K3s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q3s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J3s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T3s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">93s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">83s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">73s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">63s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">53s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">43s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">33</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">23o</td>
+          </tr>
+          <!-- Row 12: 2 -->
+          <tr>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">A2s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">K2s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">Q2s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">J2s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">T2s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">92s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">82s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">72s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">62s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">52s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">42s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-500 transition-colors border border-gray-700">32s</td>
+            <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-white hover:bg-yellow-300 transition-colors border border-gray-700">22</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer with an icon (using an inline SVG for ChevronRight) -->
+    <div class="mt-4 bg-gray-800 p-2">
+      <div class="flex items-center text-gray-300">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+        <span>/</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

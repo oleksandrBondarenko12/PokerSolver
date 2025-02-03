@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Poker Solver UI – Main Window</title>
+  <!-- Include Tailwind CSS (or your preferred stylesheet) -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-900 text-gray-100">
+  <!-- Header -->
+  <div class="bg-gray-800 p-4 border-b border-gray-700">
+    <h1 class="text-lg font-semibold text-gray-100">Solver Strategy Parameters</h1>
+  </div>
+
+  <div class="p-6 space-y-6">
+    <!-- Range Selection Section -->
+    <div class="space-y-3">
+      <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider">Range Selection</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <button class="flex items-center justify-between bg-gray-800 hover:bg-gray-700 p-3 rounded-lg transition-colors">
+          <span>Select IP</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </button>
+        <button class="flex items-center justify-between bg-gray-800 hover:bg-gray-700 p-3 rounded-lg transition-colors">
+          <span>Select OOP</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Board Input -->
+    <div class="bg-gray-800 p-4 rounded">
+      <h2 class="text-sm font-medium mb-2">Board</h2>
+      <input type="text" class="w-full bg-gray-700 rounded p-2" value="5d 9h 4s">
+      <button class="mt-2 w-full text-center bg-gray-700 p-2 rounded text-sm">Select Board Card</button>
+    </div>
+
+    <!-- IP Street Controls -->
+    <div class="grid grid-cols-3 gap-4">
+      <!-- Flop IP -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h3 class="text-sm font-medium">Flop IP</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Bet Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="50">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Raise Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="60">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded" checked>
+            <span class="text-sm">Add AllIn</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Turn IP -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h3 class="text-sm font-medium">Turn IP</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Bet Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="50">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Raise Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="60">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded" checked>
+            <span class="text-sm">Add AllIn</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- River IP -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h3 class="text-sm font-medium">River IP</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Bet Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="50">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Raise Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="60">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded" checked>
+            <span class="text-sm">Add AllIn</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button class="w-full bg-gray-700 p-2 rounded text-sm">Copy from IP to OOP</button>
+
+    <!-- OOP Street Controls -->
+    <div class="grid grid-cols-3 gap-4">
+      <!-- Flop OOP -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h3 class="text-sm font-medium">Flop OOP</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Bet Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="50">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Raise Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="60">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded" checked>
+            <span class="text-sm">Add AllIn</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Turn OOP -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h3 class="text-sm font-medium">Turn OOP</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Bet Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="50">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Raise Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="60">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded" checked>
+            <span class="text-sm">Add AllIn</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- River OOP -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h3 class="text-sm font-medium">River OOP</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Bet Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="50">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-400 w-24">Raise Sizes:</span>
+            <div class="relative flex-1">
+              <input type="text" 
+                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                     value="60">
+              <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded" checked>
+            <span class="text-sm">Add AllIn</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solver Configuration -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex items-center space-x-2">
+        <span class="text-sm">raise limit:</span>
+        <input type="number" class="w-16 bg-gray-700 rounded p-1" value="3">
+        <span class="text-sm">times</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-sm">Pot:</span>
+        <input type="number" class="w-16 bg-gray-700 rounded p-1" value="50">
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-sm">Effective Stack:</span>
+        <input type="number" class="w-24 bg-gray-700 rounded p-1" value="200">
+      </div>
+    </div>
+
+    <!-- Advanced Options -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex items-center space-x-2">
+        <span class="text-sm">allin threshold:</span>
+        <input type="number" class="w-20 bg-gray-700 rounded p-1" value="0.67">
+      </div>
+      <label class="flex items-center space-x-2">
+        <input type="checkbox" class="rounded" checked>
+        <span class="text-sm">use isomorphism</span>
+      </label>
+    </div>
+
+    <!-- Solver Controls -->
+    <div class="space-y-2">
+      <button class="w-full bg-gray-700 p-2 rounded text-sm">Build Tree</button>
+      <button class="w-full bg-gray-600 p-2 rounded text-sm">Estimate Solving Memory</button>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">Iterations:</span>
+          <input type="number" class="flex-1 bg-gray-700 rounded p-1" value="200">
+          <span class="text-sm">times</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">stop solving when reach</span>
+          <input type="number" class="w-16 bg-gray-700 rounded p-1" value="0.5">
+          <span class="text-sm">% exploitability</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-sm">log interval:</span>
+        <input type="number" class="w-16 bg-gray-700 rounded p-1" value="10">
+        <span class="text-sm">threads:</span>
+        <input type="number" class="w-16 bg-gray-700 rounded p-1" value="8">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="grid grid-cols-3 gap-4">
+      <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+        Start Solving
+      </button>
+      <button class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+        Stop Solving
+      </button>
+      <button class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+        Show Result
+      </button>
+    </div>
+
+    <!-- Log Area -->
+    <div class="mt-6">
+      <div class="bg-gray-800 text-gray-400 p-4 rounded-lg font-mono h-64 overflow-y-auto">
+        <div>Loading holdem compairing file</div>
+        <div>Loading shortdeck compairing file</div>
+        <div>Loading finished. Good to go.</div>
+        <div>building tree...</div>
+        <div>build tree finished</div>
+        <div>Start Solving..</div>
+        <div>Using 8 threads</div>
+        <div>Iter: 0</div>
+        <div>player 0 exploitability 43.9384</div>
+        <div>player 1 exploitability 27.9392</div>
+        <div>Total exploitability 71.8775 precent</div>
+        <div>------------------</div>
+      </div>
+      <button class="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors">
+        Clear Log
+      </button>
+    </div>
+  </div>
+  <!-- Note: In this static version, the RangeSelector modal is not rendered -->
+</body>
+</html>

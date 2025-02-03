@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Poker Solver UI Rendered</title>
+    <!-- Include Tailwind CSS – adjust the URL as needed -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      /* Optional: You can add custom styles here if Tailwind is not available */
+    </style>
+  </head>
+  <body class="min-h-screen bg-gray-900 text-gray-100">
+    <!-- Header -->
+    <div class="bg-gray-800 p-2">
+      <span class="text-sm font-medium">Solver strategy parameters</span>
+    </div>
+
+    <!-- Main UI Container -->
+    <div class="p-4 space-y-4">
+      <!-- Range Selection Buttons -->
+      <div class="grid grid-cols-2 gap-4">
+        <button class="bg-gray-800 p-2 rounded text-left">Select IP</button>
+        <button class="bg-gray-800 p-2 rounded text-left">Select OOP</button>
+      </div>
+
+      <!-- Board Input -->
+      <div class="bg-gray-800 p-4 rounded">
+        <h2 class="text-sm font-medium mb-2">Board</h2>
+        <input
+          type="text"
+          class="w-full bg-gray-700 rounded p-2"
+          value="5d 9h 4s"
+          readonly
+        />
+        <button class="mt-2 w-full text-center bg-gray-700 p-2 rounded text-sm">
+          Select Board Card
+        </button>
+      </div>
+
+      <!-- IP Street Controls -->
+      <div class="grid grid-cols-3 gap-4">
+        <!-- Flop IP -->
+        <div class="bg-gray-800 p-4 rounded">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium">Flop IP</h3>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Bet Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="50"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Raise Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="60"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" class="rounded" checked />
+                <span class="text-sm">Add AllIn</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <!-- Turn IP -->
+        <div class="bg-gray-800 p-4 rounded">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium">Turn IP</h3>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Bet Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="50"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Raise Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="60"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" class="rounded" checked />
+                <span class="text-sm">Add AllIn</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <!-- River IP -->
+        <div class="bg-gray-800 p-4 rounded">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium">River IP</h3>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Bet Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="50"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Raise Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="60"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" class="rounded" checked />
+                <span class="text-sm">Add AllIn</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="w-full bg-gray-700 p-2 rounded text-sm">
+        Copy from IP to OOP
+      </button>
+
+      <!-- OOP Street Controls -->
+      <div class="grid grid-cols-3 gap-4">
+        <!-- Flop OOP -->
+        <div class="bg-gray-800 p-4 rounded">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium">Flop OOP</h3>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Bet Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="50"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Raise Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="60"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" class="rounded" checked />
+                <span class="text-sm">Add AllIn</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <!-- Turn OOP -->
+        <div class="bg-gray-800 p-4 rounded">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium">Turn OOP</h3>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Bet Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="50"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Raise Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="60"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" class="rounded" checked />
+                <span class="text-sm">Add AllIn</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <!-- River OOP -->
+        <div class="bg-gray-800 p-4 rounded">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium">River OOP</h3>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Bet Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="50"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-sm w-20">Raise Sizes:</span>
+                <input
+                  type="text"
+                  class="flex-1 bg-gray-700 rounded p-1 text-sm"
+                  value="60"
+                  readonly
+                />
+                <span class="text-sm">%</span>
+              </div>
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" class="rounded" checked />
+                <span class="text-sm">Add AllIn</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Solver Configuration -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">raise limit:</span>
+          <input
+            type="number"
+            class="w-16 bg-gray-700 rounded p-1"
+            value="3"
+            readonly
+          />
+          <span class="text-sm">times</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">Pot:</span>
+          <input
+            type="number"
+            class="w-16 bg-gray-700 rounded p-1"
+            value="50"
+            readonly
+          />
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">Effective Stack:</span>
+          <input
+            type="number"
+            class="w-24 bg-gray-700 rounded p-1"
+            value="200"
+            readonly
+          />
+        </div>
+      </div>
+
+      <!-- Advanced Options -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">allin threshold:</span>
+          <input
+            type="number"
+            class="w-20 bg-gray-700 rounded p-1"
+            value="0.67"
+            readonly
+          />
+        </div>
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" class="rounded" checked />
+          <span class="text-sm">use isomorphism</span>
+        </label>
+      </div>
+
+      <!-- Solver Controls -->
+      <div class="space-y-2">
+        <button class="w-full bg-gray-700 p-2 rounded text-sm">
+          Build Tree
+        </button>
+        <button class="w-full bg-gray-600 p-2 rounded text-sm">
+          Estimate Solving Memory
+        </button>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm">Iterations:</span>
+            <input
+              type="number"
+              class="flex-1 bg-gray-700 rounded p-1"
+              value="200"
+              readonly
+            />
+            <span class="text-sm">times</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm">stop solving when reach</span>
+            <input
+              type="number"
+              class="w-16 bg-gray-700 rounded p-1"
+              value="0.5"
+              readonly
+            />
+            <span class="text-sm">% exploitability</span>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-sm">log interval:</span>
+          <input
+            type="number"
+            class="w-16 bg-gray-700 rounded p-1"
+            value="10"
+            readonly
+          />
+          <span class="text-sm">threads:</span>
+          <input
+            type="number"
+            class="w-16 bg-gray-700 rounded p-1"
+            value="8"
+            readonly
+          />
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-3 gap-4">
+        <button class="bg-gray-700 p-2 rounded text-sm">Start solving</button>
+        <button class="bg-gray-700 p-2 rounded text-sm">Stop solving</button>
+        <button class="bg-gray-700 p-2 rounded text-sm">Show Result</button>
+      </div>
+
+      <button class="w-full bg-gray-700 p-2 rounded text-sm">Clear Log</button>
+    </div>
+
+    <!-- Range Selector Modal (example when activeSelector is truthy) -->
+    <div
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+    >
+      <div
+        class="bg-gray-900 rounded-lg max-w-5xl w-full max-h-[90vh] overflow-auto"
+      >
+        <div class="bg-gray-900 p-4 rounded-lg">
+          <h2 class="text-xl text-gray-300 mb-4">RangeSelector - IP</h2>
+          <div class="mb-4">
+            <textarea
+              class="w-full bg-gray-800 text-gray-100 p-2 rounded resize-none"
+              rows="3"
+            >QQ:0.5,JJ:0.75,TT,99,88,77,66,55,44,33,22,AKo:0.25,AQs,AQo:0.75,AJs,AJo:0.75,ATs,ATo:0.75,A9s,A8s,A7s,A6s,A5s,A4s,A3s,A2s,KQ,KJ,KTs,KTo:0.5,K9s,K8s,K7s,K6s,K5s,K4s:0.5,K3s:0.5,K2s:0.5,QJ,QTs,Q9s,Q8s,Q7s,JTs,JTo:0.5,J9s,J8s,T9s,T8s,T7s,98s,97s,96s,87s,86s,76s,75s,65s,64s,54s,53s,43s</textarea>
+          </div>
+          <div class="flex items-center space-x-2 mb-4">
+            <span class="text-gray-300">.000</span>
+            <input
+              type="range"
+              class="flex-grow h-2 bg-gray-700 rounded-lg appearance-none"
+              min="0"
+              max="1000"
+              step="1"
+            />
+          </div>
+          <div class="flex space-x-2 mb-4">
+            <button class="px-4 py-2 bg-blue-600 text-white rounded text-sm">
+              Confirm
+            </button>
+            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">
+              Cancel
+            </button>
+            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">
+              Clear range
+            </button>
+            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">
+              Export Range
+            </button>
+            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">
+              Import Range
+            </button>
+            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm">
+              Open Range Folder
+            </button>
+          </div>
+          <div class="overflow-auto">
+            <!-- HandRangeTable -->
+            <table class="border-collapse bg-gray-700">
+              <tbody>
+                <!-- Row for rank "A" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">AA</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">AKo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">AQo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">AJo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">ATo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">9As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">8As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">7As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">6As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">5As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">4As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">3As</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">2As</td>
+                </tr>
+                <!-- Row for rank "K" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">AKs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">KK</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">QKo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">JKs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">TKo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">9Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">8Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">7Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">6Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">5Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">4Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">3Ks</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">2Ks</td>
+                </tr>
+                <!-- Row for rank "Q" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-gray-400">AQs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">KQs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">QQ</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">JQs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">TQo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">9Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">8Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">7Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">6Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">5Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">4Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">3Qs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">2Qs</td>
+                </tr>
+                <!-- Row for rank "J" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">AJs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">KJo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">QJo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">JJ</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">TJo</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">9Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">8Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">7Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">6Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">5Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">4Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">3Js</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">2Js</td>
+                </tr>
+                <!-- Row for rank "T" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">ATs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">KTs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">QTs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">JTs</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">TT</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">9Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">8Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">7Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">6Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">5Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">4Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">3Ts</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">2Ts</td>
+                </tr>
+                <!-- Row for rank "9" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A9o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K9o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q9o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J9o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T9o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">99</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">89s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">79s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">69s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">59s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">49s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">39s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">29s</td>
+                </tr>
+                <!-- Row for rank "8" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A8o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K8o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q8o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J8o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T8o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">98o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">88</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">78s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">68s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">58s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">48s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">38s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">28s</td>
+                </tr>
+                <!-- Row for rank "7" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A7o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K7o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q7o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J7o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T7o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">97o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">87o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">77</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">67s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">57s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">47s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">37s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">27s</td>
+                </tr>
+                <!-- Row for rank "6" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A6o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K6o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q6o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J6o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T6o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">96o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">86o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">76o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">66</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">56s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">46s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">36s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">26s</td>
+                </tr>
+                <!-- Row for rank "5" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A5o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K5o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q5o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J5o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T5o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">95o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">85o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">75o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">65o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">55</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">45s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">35s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">25s</td>
+                </tr>
+                <!-- Row for rank "4" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A4o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K4o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q4o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J4o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T4o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">94o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">84o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">74o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">64o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">54o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">44</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">34s</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">24s</td>
+                </tr>
+                <!-- Row for rank "3" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A3o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K3o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q3o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J3o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T3o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">93o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">83o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">73o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">63o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">53o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">43o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">33</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-yellow-400 text-blue-300">23s</td>
+                </tr>
+                <!-- Row for rank "2" -->
+                <tr>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">A2o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">K2o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">Q2o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">J2o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">T2o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">92o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">82o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">72o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">62o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">52o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">42o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-gray-400">32o</td>
+                  <td class="w-12 h-12 text-center cursor-pointer text-sm bg-gray-600 text-white">22</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-4 bg-gray-800 p-2">
+            <div class="flex items-center text-gray-300">
+              <!-- A simple replacement for the ChevronRight icon -->
+              <span class="w-4 h-4 inline-block">&gt;</span>
+              <span>/</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
