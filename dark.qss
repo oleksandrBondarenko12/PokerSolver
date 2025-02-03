@@ -1,0 +1,59 @@
+/* Main Window */
+QMainWindow {
+    background-color: #111827;
+    color: #ffffff;
+}
+
+/* Header */
+#header {
+    background-color: #1F2937;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: bold;
+    border-bottom: 1px solid #374151;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #374151;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+
+QPushButton:hover {
+    background-color: #4B5563;
+}
+
+/* Input Fields */
+QLineEdit {
+    background-color: #374151;
+    color: white;
+    border: 1px solid #4B5563;
+    padding: 6px;
+    border-radius: 4px;
+}
+
+/* Street Controls */
+#streetControl {
+    background-color: #1F2937;
+    padding: 16px;
+    border-radius: 4px;
+}
+
+/* Checkboxes */
+QCheckBox {
+    color: white;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid #4B5563;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #3B82F6;
+} 
