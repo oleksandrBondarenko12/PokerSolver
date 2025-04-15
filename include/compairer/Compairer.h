@@ -2,7 +2,7 @@
 #define POKERSOLVER_COMPAIRER_H
 
 #include "Card.h"
-#include "PrivateCards.h"
+#include "ranges/PrivateCards.h"
 #include <vector>
 
 namespace PokerSolver {

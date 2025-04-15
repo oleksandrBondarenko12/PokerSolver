@@ -3,7 +3,7 @@
 
 #include "GameTreeNode.h"
 #include "GameActions.h"    // For the GameActions type
-#include "Trainable.h"      // For the pointer to Trainable instances
+#include "trainable/Trainable.h"      // For the pointer to Trainable instances
 #include <vector>
 #include <memory>
 
