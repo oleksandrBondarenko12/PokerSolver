@@ -1,55 +1,66 @@
-#pragma once
-#include <cstdint>
+#ifndef POKER_SOLVER_HASHING_LOOKUP8_H_
+#define POKER_SOLVER_HASHING_LOOKUP8_H_
 
-namespace PokerSolverUtils {
+#include <cstddef> // For size_t
+#include <cstdint> // For uint64_t, uint8_t
 
-// Type aliases for clarity.
-using ub8 = std::uint64_t;
-using ub4 = std::uint32_t;
-using ub1 = std::uint8_t;
+namespace poker_solver {
+namespace hashing {
 
-// Returns 2^n as an unsigned 64-bit integer.
-constexpr ub8 hashSize(int n) noexcept {
-    return static_cast<ub8>(1) << n;
+// Original implementation by Bob Jenkins, January 1997. Public Domain.
+// Adapted to C++ and Google Style Guide.
+// Source: http://burtleburtle.net/bob/c/lookup8.c
+// Note: The original author noted in 2009 that lookup3.c is generally faster
+// for 64-bit results. Consider modern alternatives like MurmurHash3 or xxHash
+// for new projects unless lookup8 compatibility is required.
+
+// Computes the size of a hash table, generally a power of 2.
+constexpr uint64_t HashTableSize(int n) {
+  return static_cast<uint64_t>(1) << n;
 }
 
-// Returns a bitmask with the lower n bits set (i.e. 2^n - 1).
-constexpr ub8 hashMask(int n) noexcept {
-    return hashSize(n) - 1;
+// Computes the mask for a hash table size, assuming size is a power of 2.
+constexpr uint64_t HashMask(int n) {
+  return HashTableSize(n) - 1;
 }
 
-// -----------------------------------------------------------------------------
-// mix64: A reversible mixing function for three 64-bit values.
+// Core mixing function for lookup8.
+// Mixes three 64-bit values reversibly.
+inline void mix(uint64_t& a, uint64_t& b, uint64_t& c) {
+  a -= b; a -= c; a ^= (c >> 43);
+  b -= c; b -= a; b ^= (a << 9);
+  c -= a; c -= b; c ^= (b >> 8);
+  a -= b; a -= c; a ^= (c >> 38);
+  b -= c; b -= a; b ^= (a << 23);
+  c -= a; c -= b; c ^= (b >> 5);
+  a -= b; a -= c; a ^= (c >> 35);
+  b -= c; b -= a; b ^= (a << 49);
+  c -= a; c -= b; c ^= (b >> 11);
+  a -= b; a -= c; a ^= (c >> 12);
+  b -= c; b -= a; b ^= (a << 18);
+  c -= a; c -= b; c ^= (b >> 22);
+}
+
+// Hashes a variable-length key into a 64-bit value.
+// This is the most portable version, operating on bytes.
 //
-// This function is based on Bob Jenkins’ mix routines but refactored as an
-// inline function. It modifies a, b, and c in place. The purpose is to mix
-// the bits of the three inputs so that each bit of the result depends on
-// every bit of the input. This is used in constructing a hash key from a
-// combination of cards.
-// -----------------------------------------------------------------------------
-inline void mix64(ub8 &a, ub8 &b, ub8 &c) noexcept {
-    a -= b; a -= c; a ^= (c >> 43);
-    b -= c; b -= a; b ^= (a << 9);
-    c -= a; c -= b; c ^= (b >> 8);
-    a -= b; a -= c; a ^= (c >> 38);
-    b -= c; b -= a; b ^= (a << 23);
-    c -= a; c -= b; c ^= (b >> 5);
-    a -= b; a -= c; a ^= (c >> 35);
-    b -= c; b -= a; b ^= (a << 49);
-    c -= a; c -= b; c ^= (b >> 11);
-    a -= b; a -= c; a ^= (c >> 12);
-    b -= c; b -= a; b ^= (a << 18);
-    c -= a; c -= b; c ^= (b >> 22);
-}
+// Args:
+//   key: Pointer to the byte array key.
+//   length: The length of the key in bytes.
+//   initval: The initial value (seed), can be any 64-bit value.
+//
+// Returns:
+//   A 64-bit hash value.
+uint64_t lookup8_hash(const uint8_t* key, size_t length, uint64_t initval = 0);
 
-// -----------------------------------------------------------------------------
-// Hash function prototypes.
-// These functions convert a variable–length key (given as a pointer to bytes)
-// into a 64–bit hash value. They differ slightly in their initialization seeds
-// or the data types they accept.
-// -----------------------------------------------------------------------------
-ub8 hash1(const ub1* key, ub8 length, ub8 level);
-ub8 hash2(const ub8* key, ub8 length, ub8 level);
-ub8 hash3(const ub1* key, ub8 length, ub8 level);
+// Note: The original C code included hash2() and hash3() which were faster
+// but less portable (requiring aligned uint64_t arrays or specific
+// endianness). They are omitted here for better C++ practice and portability.
+// If extreme performance on specific platforms is needed and constraints are
+// acceptable, they could be adapted, but careful attention to alignment and
+// strict aliasing rules in C++ is required.
 
-} // namespace PokerSolverUtils
+} // namespace hashing
+} // namespace poker_solver
+
+#endif // POKER_SOLVER_HASHING_LOOKUP8_H_

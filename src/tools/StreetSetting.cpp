@@ -1,34 +1,47 @@
-// StreetSetting.cpp
-#include "StreetSetting.h"
+#ifndef POKER_SOLVER_CONFIG_STREET_SETTING_H_
+#define POKER_SOLVER_CONFIG_STREET_SETTING_H_
 
-namespace poker {
+#include <vector>
+#include <cstdint> // Included for consistency, though not directly used here
 
-StreetSetting::StreetSetting(const std::vector<float>& betSizes,
-                             const std::vector<float>& raiseSizes,
-                             const std::vector<float>& donkSizes,
-                             bool allin)
-    : betSizes_(betSizes),
-      raiseSizes_(raiseSizes),
-      donkSizes_(donkSizes),
-      allin_(allin)
-{
-    // Optional: Validate that the vectors are not empty if required.
-}
+namespace poker_solver {
+namespace config {
 
-const std::vector<float>& StreetSetting::getBetSizes() const {
-    return betSizes_;
-}
+// Holds the allowed betting configurations for a specific street (Flop, Turn, River)
+// for a particular player position (IP or OOP).
+// Bet sizes are typically represented as percentages of the pot.
+struct StreetSetting {
+  // Creates a StreetSetting with specified bet/raise/donk sizes.
+  // Args:
+  //   bet_sizes_percent: Vector of allowed bet sizes as percentages of the pot.
+  //   raise_sizes_percent: Vector of allowed raise sizes as percentages of the pot.
+  //   donk_sizes_percent: Vector of allowed donk bet sizes as percentages of the pot.
+  //   allow_all_in: Whether an all-in action is explicitly allowed (in addition
+  //                 to potentially being reached via large bet/raise sizes).
+  StreetSetting(std::vector<double> bet_sizes_percent,
+                std::vector<double> raise_sizes_percent,
+                std::vector<double> donk_sizes_percent,
+                bool allow_all_in);
 
-const std::vector<float>& StreetSetting::getRaiseSizes() const {
-    return raiseSizes_;
-}
+  // Default constructor (creates empty settings).
+  StreetSetting() = default;
 
-const std::vector<float>& StreetSetting::getDonkSizes() const {
-    return donkSizes_;
-}
+  // Allowed bet sizes as percentages of the current pot (e.g., 50.0 for 50%).
+  std::vector<double> bet_sizes_percent;
 
-bool StreetSetting::isAllIn() const {
-    return allin_;
-}
+  // Allowed raise sizes as percentages of the current pot (e.g., 100.0 for pot-sized raise).
+  std::vector<double> raise_sizes_percent;
 
-} // namespace poker
+  // Allowed donk bet sizes (betting out of position into the previous street's aggressor)
+  // as percentages of the current pot.
+  std::vector<double> donk_sizes_percent;
+
+  // Flag indicating if an explicit "all-in" action should be added,
+  // regardless of calculated bet/raise sizes potentially reaching the stack limit.
+  bool allow_all_in = false;
+};
+
+} // namespace config
+} // namespace poker_solver
+
+#endif // POKER_SOLVER_CONFIG_STREET_SETTING_H_

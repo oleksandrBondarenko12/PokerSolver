@@ -1,46 +1,44 @@
-#ifndef POKERSOLVER_DECK_H
-#define POKERSOLVER_DECK_H
+#ifndef POKER_SOLVER_CORE_DECK_H_
+#define POKER_SOLVER_CORE_DECK_H_
 
-#include "Card.h"
+#include "Card.h" // Includes kNumCardsInDeck
 #include <vector>
-#include <random>
-#include <algorithm>
-#include <chrono>
-#include <stdexcept>
+#include <string>
+#include <string_view>
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace core {
 
-// The Deck class encapsulates a collection of Card objects. It provides functionality
-// for creating a standard deck (52 cards), shuffling, drawing cards, and resetting.
+// Represents a standard 52-card deck.
 class Deck {
-public:
-    // Constructs a standard 52-card deck in ordered sequence.
-    Deck();
+ public:
+  // Creates a standard, ordered 52-card deck.
+  Deck();
 
-    // Constructs a deck from a given list of cards (useful for custom decks or testing).
-    explicit Deck(const std::vector<Card>& cards);
+  // Creates a deck using custom ranks and suits (primarily for testing or
+  // non-standard games).
+  Deck(const std::vector<std::string_view>& ranks,
+       const std::vector<std::string_view>& suits);
 
-    // Resets the deck to a standard ordered 52-card deck.
-    void reset();
+  // Returns a const reference to the vector of cards in the deck.
+  const std::vector<Card>& GetCards() const;
 
-    // Shuffles the deck using a Mersenne Twister random engine.
-    void shuffle();
+  // Finds a card by its string representation ("As", "Td", etc.).
+  // Returns an empty Card object if not found.
+  // Note: Linear search, potentially slow for frequent lookups.
+  Card FindCard(std::string_view card_str) const;
 
-    // Draws (removes and returns) the top card from the deck.
-    // Throws std::out_of_range if no cards remain.
-    Card draw();
+  // Finds a card by its integer representation (0-51).
+  // Returns an empty Card object if the index is invalid or the deck
+  // doesn't contain the standard 52 cards.
+  Card FindCard(int card_int) const;
 
-    // Returns the number of cards remaining in the deck.
-    [[nodiscard]] size_t size() const noexcept;
-
-    // Returns a const reference to the internal card vector.
-    [[nodiscard]] const std::vector<Card>& getCards() const noexcept;
-
-private:
-    std::vector<Card> cards_;
-    std::mt19937 randomEngine_; // Mersenne Twister for shuffling.
+ private:
+  // The collection of cards representing the deck.
+  std::vector<Card> cards_;
 };
 
-} // namespace PokerSolver
+} // namespace core
+} // namespace poker_solver
 
-#endif // POKERSOLVER_DECK_H
+#endif // POKER_SOLVER_CORE_DECK_H_

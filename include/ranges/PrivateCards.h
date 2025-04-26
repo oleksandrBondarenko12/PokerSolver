@@ -1,57 +1,94 @@
-#ifndef POKERSOLVER_PRIVATECARDS_H
-#define POKERSOLVER_PRIVATECARDS_H
+#ifndef POKER_SOLVER_CORE_PRIVATE_CARDS_H_
+#define POKER_SOLVER_CORE_PRIVATE_CARDS_H_
 
-#include "Card.h"
+#include "Card.h" // For Card class and constants
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <sstream>
-#include <functional>
-#include <stdexcept>
-#include <algorithm>
+#include <functional> // For std::hash
+#include <utility>    // For std::pair
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace core {
 
-// The PrivateCards class represents a two–card hand (the “private” cards)
-// assigned to a player. It stores two Card objects along with a weight (which
-// may be used for frequency or probability purposes) and a relative probability.
+// Represents a player's two private hole cards, along with an associated weight.
+// Cards are stored internally in a canonical order (lower int first).
 class PrivateCards {
-public:
-    // Constructor: creates a PrivateCards instance from two Card objects.
-    // The cards are automatically sorted (lowest first) to enforce a canonical order.
-    PrivateCards(const Card &card1, const Card &card2, float weight = 1.0f, float relativeProbability = 1.0f);
+ public:
+  // Default constructor (creates an invalid state, use with caution or init).
+  PrivateCards();
 
-    // Returns the first card (lowest in canonical order)
-    const Card& card1() const noexcept { return card1_; }
-    
-    // Returns the second card (highest in canonical order)
-    const Card& card2() const noexcept { return card2_; }
+  // Constructs a PrivateCards object.
+  // Args:
+  //   card1_int: Integer representation (0-51) of the first card.
+  //   card2_int: Integer representation (0-51) of the second card.
+  //   weight: The weight associated with this hand combination (default 1.0).
+  // Throws:
+  //   std::out_of_range if card integers are invalid.
+  //   std::invalid_argument if card1_int == card2_int.
+  PrivateCards(int card1_int, int card2_int, double weight = 1.0);
 
-    // Getters for weight and relative probability
-    float weight() const noexcept { return weight_; }
-    float relativeProbability() const noexcept { return relativeProbability_; }
+  // --- Accessors ---
 
-    // Setters for weight and relative probability
-    void setWeight(float weight) noexcept { weight_ = weight; }
-    void setRelativeProbability(float relProb) noexcept { relativeProbability_ = relProb; }
+  // Returns the integer representation of the first card (always the lower int).
+  int Card1Int() const { return card1_int_; }
 
-    // Returns a string representation, e.g. "Ah Kd"
-    std::string toString() const;
+  // Returns the integer representation of the second card (always the higher int).
+  int Card2Int() const { return card2_int_; }
 
-    // Computes a hash code for this hand. (The ordering is canonical.)
-    int hashCode() const;
+  // Returns the weight associated with this hand.
+  double Weight() const { return weight_; }
 
-    // Convert the two cards to a 64–bit bitmask.
-    // Each card is represented as a single bit (0–51), and the hand is the bitwise OR.
-    uint64_t toBoardMask() const;
+  // Returns the pre-calculated 64-bit bitmask for these two cards.
+  uint64_t GetBoardMask() const { return board_mask_; }
 
-private:
-    Card card1_;
-    Card card2_;
-    float weight_;
-    float relativeProbability_;
+  // Returns a canonical string representation (e.g., "AKs", "TdTs").
+  // Note: This requires converting back to Card objects, potentially less efficient.
+  // Consider if only int representation is needed internally.
+  std::string ToString() const;
+
+  // Returns the two card integers as a std::pair.
+  std::pair<int, int> GetCardInts() const { return {card1_int_, card2_int_}; }
+
+  // --- Operators ---
+
+  // Equality comparison based on the two card integers.
+  bool operator==(const PrivateCards& other) const;
+
+  // Inequality comparison.
+  bool operator!=(const PrivateCards& other) const;
+
+  // Less-than comparison based first on card1_int_, then card2_int_.
+  // Useful for sorting or using in ordered containers.
+  bool operator<(const PrivateCards& other) const;
+
+
+ private:
+  // Ensure canonical order and calculate derived members.
+  void Initialize(int c1, int c2, double w);
+
+  int card1_int_;      // Lower card integer (0-51)
+  int card2_int_;      // Higher card integer (0-51)
+  double weight_;      // Weight/frequency of this hand combo
+  uint64_t board_mask_; // Bitmask representation (1ULL << c1) | (1ULL << c2)
 };
 
-} // namespace PokerSolver
+// --- Hash Function Specialization ---
+// Allows PrivateCards to be used as keys in unordered containers.
 
-#endif // POKERSOLVER_PRIVATECARDS_H
+} // namespace core
+} // namespace poker_solver
+
+
+// Specialize std::hash for PrivateCards within the std namespace
+// (as per standard practice for hash specializations).
+namespace std {
+template <>
+struct hash<poker_solver::core::PrivateCards> {
+  std::size_t operator()(
+      const poker_solver::core::PrivateCards& pc) const noexcept;
+};
+} // namespace std
+
+
+#endif // POKER_SOLVER_CORE_PRIVATE_CARDS_H_

@@ -1,166 +1,198 @@
-#include "Card.h"
-#include <stdexcept> // Include for exceptions
-#include <array>     // Include for std::array
-#include <sstream>   // Include for std::ostringstream
-#include <algorithm> // Include for std::transform, std::copy_if
-#include <cctype>    // Include for std::tolower, std::isdigit, std::isspace
-#include <string>    // Include for std::string operations
+#include "card.h" // Adjust path if necessary
 
-namespace PokerSolver {
+#include <stdexcept>
+#include <sstream>   // For error message formatting
+#include <algorithm> // For std::find
 
-// Helper arrays for converting rank and suit to string.
-static const std::array<std::string, 13> RankStrings = {
-    "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A" // Use 'T' for Ten
+namespace poker_solver {
+namespace core {
+
+// --- Constants for Ranks and Suits ---
+// Note: These are defined here to avoid static initialization order issues
+// if they were defined directly in the header for non-integral types.
+const std::array<char, kNumRanks> kRankChars = {
+    '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'
 };
+const std::array<char, kNumSuits> kSuitChars = {'c', 'd', 'h', 's'};
 
-static const std::array<char, 4> SuitsChars = {'c', 'd', 'h', 's'};
-
-// Helper: convert a character to Suit
-static Suit charToSuit(char c) {
-    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    switch (c) {
-        case 'c': return Suit::Clubs;
-        case 'd': return Suit::Diamonds;
-        case 'h': return Suit::Hearts;
-        case 's': return Suit::Spades;
-        default:
-            throw std::invalid_argument("Card::charToSuit: Invalid suit character: " + std::string(1, c));
-    }
+const std::array<char, kNumSuits>& Card::GetAllSuitChars() {
+    return kSuitChars;
+}
+const std::array<char, kNumRanks>& Card::GetAllRankChars() {
+    return kRankChars;
 }
 
-// Helper: convert a string to Rank
-static Rank stringToRank(const std::string &str) {
-    std::string up = str;
-    // Convert to uppercase for case-insensitive comparison
-    std::transform(up.begin(), up.end(), up.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+// --- Helper Functions ---
 
-    if (up == "2") return Rank::Two;
-    if (up == "3") return Rank::Three;
-    if (up == "4") return Rank::Four;
-    if (up == "5") return Rank::Five;
-    if (up == "6") return Rank::Six;
-    if (up == "7") return Rank::Seven;
-    if (up == "8") return Rank::Eight;
-    if (up == "9") return Rank::Nine;
-    if (up == "T" || up == "10") return Rank::Ten; // Allow 'T' or '10'
-    if (up == "J") return Rank::Jack;
-    if (up == "Q") return Rank::Queen;
-    if (up == "K") return Rank::King;
-    if (up == "A") return Rank::Ace;
-
-    throw std::invalid_argument("Card::stringToRank: Invalid rank string: " + str);
+bool Card::IsValidCardInt(int card_int) {
+    return card_int >= 0 && card_int < kNumCardsInDeck;
 }
 
-// Constructor from rank and suit
-Card::Card(Rank rank, Suit suit)
-    : rank_(rank), suit_(suit) {}
-
-// Constructor from string representation (e.g., "Ah", "10c", "Td")
-Card::Card(const std::string &cardStr) {
-    // Remove whitespace from the input string.
-    std::string trimmed;
-    std::copy_if(cardStr.begin(), cardStr.end(), std::back_inserter(trimmed),
-                 [](char c) { return !std::isspace(static_cast<unsigned char>(c)); });
-
-    if (trimmed.empty()) {
-        throw std::invalid_argument("Card::Card(string): Input string is empty");
+char Card::SuitIndexToChar(int suit_index) {
+    if (suit_index >= 0 && suit_index < kNumSuits) {
+        return kSuitChars[suit_index];
     }
+    return '?'; // Indicate error
+}
 
-    size_t len = trimmed.size();
-    if (len < 2) {
-         throw std::invalid_argument("Card::Card(string): Input string too short: " + trimmed);
+char Card::RankIndexToChar(int rank_index) {
+    if (rank_index >= 0 && rank_index < kNumRanks) {
+        return kRankChars[rank_index];
     }
+    return '?'; // Indicate error
+}
 
-    // The last character is always the suit.
-    char suitChar = trimmed.back();
-    // The part before the last character is the rank.
-    std::string rankPart = trimmed.substr(0, len - 1);
-
-    // Validate and assign
-    rank_ = stringToRank(rankPart); // Use helper to parse rank
-    suit_ = charToSuit(suitChar);   // Use helper to parse suit
-
-    // --- NOTE: The previous logic for parsing based on std::isdigit was removed ---
-    // --- as the simpler substr logic above handles "10" and single chars correctly ---
-    // --- and avoids the structural error that caused the compilation failure. ---
-    // --- If you specifically need the digit-checking logic, ensure braces are correct: ---
-    /*
-    size_t pos = 0;
-    if (std::isdigit(trimmed[0])) {
-        while (pos < len && std::isdigit(trimmed[pos])) {
-            ++pos;
-        }
-    } // <<< BRACE WAS MISSING HERE
-    else {
-        pos = 1;
-        // Handle "10" specifically if needed, though substr approach is cleaner
-        if (trimmed[0] == '1' && pos < len && trimmed[pos] == '0') {
-             ++pos;
+int Card::SuitCharToIndex(char suit_char) {
+    // Consider lowercase version for robustness
+    char lower_suit = std::tolower(suit_char);
+    for (int i = 0; i < kNumSuits; ++i) {
+        if (lower_suit == kSuitChars[i]) {
+            return i;
         }
     }
-    if (pos >= len) { // Check if suit is missing after rank parsing
-        throw std::invalid_argument("Card::Card(string): Missing suit character after rank");
+    return -1; // Indicate error
+}
+
+int Card::RankCharToIndex(char rank_char) {
+    // Consider uppercase version for robustness
+    char upper_rank = std::toupper(rank_char);
+     for (int i = 0; i < kNumRanks; ++i) {
+        if (upper_rank == kRankChars[i]) {
+            return i;
+        }
     }
-    std::string rankPart = trimmed.substr(0, pos);
-    std::string suitPart = trimmed.substr(pos); // Suit is the rest of the string
-     if (suitPart.length() != 1) {
-         throw std::invalid_argument("Card::Card(string): Invalid suit format: " + suitPart);
-     }
-    rank_ = stringToRank(rankPart);
-    suit_ = charToSuit(suitPart[0]);
-    */
-
-} // <<< BRACE WAS MISSING HERE for the constructor
+    return -1; // Indicate error
+}
 
 
-// Convert the card to a string (e.g. "Ah", "Tc")
-std::string Card::toString() const {
-    int rankIndex = static_cast<int>(rank_) - static_cast<int>(Rank::Two);
-    if (rankIndex < 0 || rankIndex >= static_cast<int>(RankStrings.size())) {
-        throw std::logic_error("Card::toString: Invalid internal rank value");
+// --- Constructors ---
+
+Card::Card(int card_int) {
+    if (!IsValidCardInt(card_int)) {
+        std::ostringstream oss;
+        oss << "Invalid card integer: " << card_int << ". Must be 0-"
+            << (kNumCardsInDeck - 1) << ".";
+        throw std::out_of_range(oss.str());
     }
-    int suitIndex = static_cast<int>(suit_);
-    if (suitIndex < 0 || suitIndex >= static_cast<int>(SuitsChars.size())) {
-        throw std::logic_error("Card::toString: Invalid internal suit value");
+    card_int_ = card_int;
+}
+
+Card::Card(std::string_view card_str) {
+    card_int_ = StringToInt(card_str);
+    if (!card_int_.has_value()) {
+         std::ostringstream oss;
+         oss << "Invalid card string format: \"" << card_str << "\". Expected format like 'As', 'Td', '2c'.";
+        throw std::invalid_argument(oss.str());
     }
-    return RankStrings[rankIndex] + std::string(1, SuitsChars[suitIndex]);
 }
 
-// Return a unique byte representation (0-51)
-uint8_t Card::toByte() const noexcept {
-    int rankIndex = static_cast<int>(rank_) - static_cast<int>(Rank::Two);
-    int suitIndex = static_cast<int>(suit_);
-    return static_cast<uint8_t>(rankIndex * 4 + suitIndex);
-}
+// --- Accessors ---
 
-// Create a Card from a byte representation.
-Card Card::fromByte(uint8_t byte) {
-    if (byte > 51) {
-         throw std::out_of_range("Card::fromByte: Input byte " + std::to_string(byte) + " is out of range (0-51).");
+std::string Card::ToString() const {
+    if (!card_int_.has_value()) {
+        return "Empty";
     }
-    int rankIndex = byte / 4;
-    int suitIndex = byte % 4;
-    Rank r = static_cast<Rank>(rankIndex + static_cast<int>(Rank::Two));
-    Suit s = static_cast<Suit>(suitIndex);
-    return Card(r, s);
+    return IntToString(card_int_.value());
 }
 
+// --- Static Conversion Utilities ---
 
-// Comparison operators
-bool Card::operator==(const Card &other) const noexcept {
-    return rank_ == other.rank_ && suit_ == other.suit_;
-}
-
-bool Card::operator!=(const Card &other) const noexcept {
-    return !(*this == other);
-}
-
-bool Card::operator<(const Card &other) const noexcept {
-    if (rank_ != other.rank_) {
-        return rank_ < other.rank_;
+std::optional<int> Card::StringToInt(std::string_view card_str) {
+    if (card_str.length() != 2) {
+        return std::nullopt;
     }
-    return suit_ < other.suit_;
+
+    int rank_index = RankCharToIndex(card_str[0]);
+    int suit_index = SuitCharToIndex(card_str[1]);
+
+    if (rank_index == -1 || suit_index == -1) {
+        return std::nullopt;
+    }
+
+    // Formula: card_int = rank_index * num_suits + suit_index
+    return rank_index * kNumSuits + suit_index;
 }
 
-} // namespace PokerSolver
+std::string Card::IntToString(int card_int) {
+    if (!IsValidCardInt(card_int)) {
+        return "Invalid";
+    }
+
+    int rank_index = card_int / kNumSuits; // 0='2', ..., 12='A'
+    int suit_index = card_int % kNumSuits; // 0='c', 1='d', 2='h', 3='s'
+
+    std::string s;
+    s += RankIndexToChar(rank_index);
+    s += SuitIndexToChar(suit_index);
+    return s;
+}
+
+// --- Static Bitmask Utilities ---
+
+uint64_t Card::CardIntsToUint64(const std::vector<int>& card_ints) {
+    uint64_t board_mask = 0;
+    for (int card_int : card_ints) {
+        // Delegate validation to CardIntToUint64
+        board_mask |= CardIntToUint64(card_int);
+    }
+    return board_mask;
+}
+
+uint64_t Card::CardsToUint64(const std::vector<Card>& cards) {
+    uint64_t board_mask = 0;
+    for (const auto& card : cards) {
+        // Skips empty cards, delegates validation
+        board_mask |= CardToUint64(card);
+    }
+    return board_mask;
+}
+
+uint64_t Card::CardIntToUint64(int card_int) {
+    if (!IsValidCardInt(card_int)) {
+        std::ostringstream oss;
+        oss << "Invalid card integer for bitmask: " << card_int;
+        throw std::out_of_range(oss.str());
+    }
+    // Set the bit corresponding to the card's index
+    return static_cast<uint64_t>(1) << card_int;
+}
+
+uint64_t Card::CardToUint64(const Card& card) {
+    if (card.IsEmpty()) {
+        return 0;
+    }
+    // Assumes card_int is valid if !IsEmpty()
+    return static_cast<uint64_t>(1) << card.card_int().value();
+}
+
+std::vector<int> Card::Uint64ToCardInts(uint64_t board_mask) {
+    std::vector<int> card_ints;
+    // Reserve approximate space - max 7 cards usually relevant in Hold'em
+    card_ints.reserve(7);
+    for (int i = 0; i < kNumCardsInDeck; ++i) {
+        // Check if the i-th bit is set
+        if ((board_mask >> i) & 1) {
+            card_ints.push_back(i);
+        }
+    }
+    return card_ints;
+}
+
+std::vector<Card> Card::Uint64ToCards(uint64_t board_mask) {
+    std::vector<Card> cards;
+    cards.reserve(7); // Approximate capacity
+    std::vector<int> card_ints = Uint64ToCardInts(board_mask);
+    for (int card_int : card_ints) {
+        // Construction handles validation
+        cards.emplace_back(card_int);
+    }
+    return cards;
+}
+
+bool Card::DoBoardsOverlap(uint64_t board_mask1, uint64_t board_mask2) {
+    return (board_mask1 & board_mask2) != 0;
+}
+
+
+} // namespace core
+} // namespace poker_solver

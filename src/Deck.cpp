@@ -1,57 +1,84 @@
-#include "Deck.h"
+#include "Deck.h" // Adjust path if necessary
 
-namespace PokerSolver {
+#include <stdexcept> // For potential exceptions
+#include <sstream>   // For error messages
 
-// Default constructor: Create a standard deck and seed the random engine.
+namespace poker_solver {
+namespace core {
+
+// Constructor for a standard 52-card deck.
 Deck::Deck() {
-    reset();
-    // Seed using the current time.
-    auto seed = static_cast<unsigned>(std::chrono::system_clock::now().time_since_epoch().count());
-    randomEngine_.seed(seed);
+    cards_.reserve(kNumCardsInDeck);
+    for (int i = 0; i < kNumCardsInDeck; ++i) {
+        // Card constructor validates the integer.
+        cards_.emplace_back(i);
+    }
 }
 
-// Constructor that accepts a custom vector of cards.
-Deck::Deck(const std::vector<Card>& cards)
-    : cards_(cards)
-{
-    auto seed = static_cast<unsigned>(std::chrono::system_clock::now().time_since_epoch().count());
-    randomEngine_.seed(seed);
-}
-
-// Reset the deck to the standard 52 cards in a defined order.
-void Deck::reset() {
-    cards_.clear();
-    // Iterate over all ranks and suits.
-    for (int r = static_cast<int>(Rank::Two); r <= static_cast<int>(Rank::Ace); ++r) {
-        for (int s = 0; s < 4; ++s) {
-            cards_.push_back(Card(static_cast<Rank>(r), static_cast<Suit>(s)));
+// Constructor for a custom deck (e.g., for Short Deck).
+Deck::Deck(const std::vector<std::string_view>& ranks,
+           const std::vector<std::string_view>& suits) {
+    cards_.reserve(ranks.size() * suits.size());
+    for (const auto& rank : ranks) {
+        for (const auto& suit : suits) {
+            // Combine rank and suit into a string.
+            std::string card_str;
+            card_str.append(rank);
+            card_str.append(suit);
+            try {
+                // Create card using the string constructor, which validates.
+                cards_.emplace_back(card_str);
+            } catch (const std::invalid_argument& e) {
+                // Handle potential errors during custom deck creation.
+                std::ostringstream oss;
+                oss << "Error creating custom deck with rank '" << rank
+                    << "' and suit '" << suit << "': " << e.what();
+                // Depending on desired behavior, could rethrow, log, or ignore.
+                // Rethrowing is often safest during development.
+                throw std::runtime_error(oss.str());
+            }
         }
     }
+    // Note: If using this constructor, the internal card integers might not
+    // align perfectly with the 0-51 standard if ranks/suits are non-standard.
+    // This class primarily assumes a standard deck structure internally.
 }
 
-// Shuffle the deck using std::shuffle with our Mersenne Twister engine.
-void Deck::shuffle() {
-    std::shuffle(cards_.begin(), cards_.end(), randomEngine_);
-}
 
-// Draw the top card from the deck. Throws if the deck is empty.
-Card Deck::draw() {
-    if (cards_.empty()) {
-        throw std::out_of_range("Deck::draw: No more cards in the deck.");
-    }
-    Card drawn = cards_.back();
-    cards_.pop_back();
-    return drawn;
-}
-
-// Return the number of cards remaining in the deck.
-size_t Deck::size() const noexcept {
-    return cards_.size();
-}
-
-// Return a constant reference to the underlying cards vector.
-const std::vector<Card>& Deck::getCards() const noexcept {
+const std::vector<Card>& Deck::GetCards() const {
     return cards_;
 }
 
-} // namespace PokerSolver
+Card Deck::FindCard(std::string_view card_str) const {
+    // Convert the target string to its integer representation first.
+    std::optional<int> target_int = Card::StringToInt(card_str);
+    if (!target_int) {
+        return Card(); // Return empty card if string is invalid
+    }
+    return FindCard(target_int.value());
+}
+
+Card Deck::FindCard(int card_int) const {
+    // Check if the integer is valid and if the deck is standard size.
+    // This check assumes the deck intends to be standard if FindCard(int) is used.
+    if (Card::IsValidCardInt(card_int) && cards_.size() == kNumCardsInDeck) {
+         // In a standard ordered deck, the card at index `card_int` should
+         // be the card with that integer value.
+         if (!cards_[card_int].IsEmpty() && cards_[card_int].card_int() == card_int) {
+             return cards_[card_int];
+         }
+         // Fallback: If deck isn't ordered or standard, search linearly.
+         // This shouldn't happen with the default constructor.
+         for (const auto& card : cards_) {
+             if (!card.IsEmpty() && card.card_int() == card_int) {
+                 return card;
+             }
+         }
+    }
+    // Return empty card if not found or index is invalid for standard deck.
+    return Card();
+}
+
+
+} // namespace core
+} // namespace poker_solver
