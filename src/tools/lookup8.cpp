@@ -1,4 +1,4 @@
-#include "lookup8.h"
+#include "tools/lookup8.h"
 #include <cstring>  // for std::memcpy
 
 namespace PokerSolverUtils {

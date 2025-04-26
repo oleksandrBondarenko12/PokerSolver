@@ -4,64 +4,62 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include "Compairer.h"    // Abstract interface with virtual getRank() & compare()
-#include "Card.h"         // Our Card definition
+#include "Compairer.h"     // Abstract interface
+#include "Card.h"          // Our Card definition
 
 namespace PokerSolver {
 
 /**
- * @brief A concrete 5‐card compairer using a dictionary lookup.
- *
- * This class loads a resource file (precomputed lookup table)
- * that maps a unique key for a 5–card hand to an ordinal rank.
- * It uses a lookup function from lookup8 to compute the key from a sorted hand.
+ * @brief A concrete Compairer using a 5-card dictionary lookup for 7-card evaluation.
  */
 class Dic5Compairer : public Compairer {
-public:
+public: // <-- Made public section explicit
     /**
      * @brief Construct a new Dic5Compairer object.
-     * @param resourceFilePath The relative or absolute path to the resource file.
+     * @param resourceFilePath The path to the 5-card rank resource file.
      */
     explicit Dic5Compairer(const std::string& resourceFilePath = "resources/compairer/five_card_strength.txt");
 
     /// Default virtual destructor.
     virtual ~Dic5Compairer() override = default;
 
-    /**
-     * @brief Returns the ordinal rank of a 5–card hand (lower is stronger).
-     * @param hand The five cards to evaluate.
-     * @return int The precomputed ordinal rank.
-     * @throws std::invalid_argument if hand does not contain exactly 5 cards.
-     * @throws std::runtime_error if the hand’s key is not found in the lookup table.
-     */
-    virtual int getRank(const std::vector<Card>& hand) const override;
+    // --- Implementations of Compairer pure virtual functions ---
 
     /**
-     * @brief Compares two 5–card hands.
-     * @param hand1 The first hand.
-     * @param hand2 The second hand.
-     * @return int Returns -1 if hand1 is stronger, 1 if hand2 is stronger, or 0 if equal.
+     * @brief Evaluates and returns the rank for a 7-card hand (2 private + 5 board).
      */
-    virtual int compare(const std::vector<Card>& hand1, const std::vector<Card>& hand2) const override;
+    int getRank(const std::vector<Card>& privateHand,
+                const std::vector<Card>& board) const override; // CORRECT override
+
+    /**
+     * @brief Compares two 7-card hands (private1+board vs private2+board).
+     */
+    ComparisonResult compare(const std::vector<Card>& privateHand1,
+                             const std::vector<Card>& privateHand2,
+                             const std::vector<Card>& board) const override; // CORRECT override
+
+    // --- Optional: Direct 5-card rank lookup (Moved to Public) ---
+    // Useful for internal checks or if you ever need to rank exactly 5 cards.
+    // Note: No 'override' keyword here as it doesn't override the base interface method.
+    int getRank(const std::vector<Card>& hand) const; // MOVED TO PUBLIC
 
 private:
-    // The lookup table maps a unique 64-bit key to the hand's ordinal rank.
+    // --- Helper Methods and Data ---
+
+    // The lookup table maps a unique 64-bit key (from 5 cards) to the hand's ordinal rank.
     std::unordered_map<uint64_t, int> lookupTable_;
 
     /// Helper function to load the resource file into lookupTable_.
     void loadResourceFile(const std::string& resourceFilePath);
 
     /**
-     * @brief Computes the lookup key for a given sorted 5–card hand.
-     *
-     * Each card is converted into its unique byte value (0-51) and placed
-     * into a vector. The lookup8 routine then mixes these bytes into a 64-bit key.
-     *
-     * @param sortedHand A vector of 5 cards (already sorted in canonical order).
+     * @brief Computes the lookup key for a given sorted 5-card hand.
+     * @param sortedHand A vector of 5 cards (must be sorted).
      * @return uint64_t The computed key.
      */
     uint64_t computeHandKey(const std::vector<Card>& sortedHand) const;
-};
+
+}; // End class Dic5Compairer
 
 } // namespace PokerSolver
 
