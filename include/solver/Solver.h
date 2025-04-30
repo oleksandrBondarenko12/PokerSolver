@@ -1,59 +1,68 @@
-#ifndef POKERSOLVER_SOLVER_H
-#define POKERSOLVER_SOLVER_H
+#ifndef POKER_SOLVER_SOLVER_SOLVER_H_
+#define POKER_SOLVER_SOLVER_SOLVER_H_
 
-#include <memory>
-#include "tools/Rule.h"
-#include "GameTree.h"
+#include <memory> // For std::shared_ptr
+#include <string>
+#include <vector>
+#include <json.hpp> // <<< INCLUDE full header instead of forward declaring
 
-namespace PokerSolver {
+// Forward declarations
+namespace poker_solver { namespace core { class GameTree; } }
+// namespace nlohmann { class json; } // Forward declare json if used
+using json = nlohmann::json;       // Bring into scope if used
 
-/**
- * @brief The Solver class is the central driver for the poker solver.
- *
- * This class initializes the game tree from a given rule, runs the solver for a number
- * of iterations, and (in a more complete implementation) gathers and exports the computed strategies.
- */
+namespace poker_solver {
+namespace solver {
+
+// Abstract base class (interface) for poker game solving algorithms (e.g., CFR variants).
 class Solver {
-public:
-    /**
-     * @brief Constructs a Solver with a given game rule configuration.
-     * @param rule The game configuration encapsulated in a Rule object.
-     */
-    explicit Solver(const Rule& rule);
+ public:
+  // Virtual destructor is essential for base classes.
+  virtual ~Solver() = default;
 
-    /// Destructor (defaulted).
-    ~Solver() = default;
+  // Starts the training/solving process.
+  // This will typically run for a specified number of iterations or until
+  // a convergence criterion (like exploitability) is met.
+  virtual void Train() = 0;
 
-    /**
-     * @brief Initializes the solver by constructing the game tree.
-     *
-     * In a complete implementation, this method would invoke a more sophisticated
-     * game tree building routine. For this example, we build a dummy tree with a single root node.
-     */
-    void initialize();
+  // Signals the solver to stop the training process prematurely.
+  // Useful for iterative algorithms running in a separate thread or loop.
+  virtual void Stop() = 0;
 
-    /**
-     * @brief Runs the solver for the specified number of iterations.
-     * @param iterations The number of iterations to simulate.
-     *
-     * On each iteration, the solver would update the regret values and strategies
-     * in the game tree. In our simplified version, we print out the iteration count.
-     */
-    void run(int iterations);
+  // Dumps the computed strategy (usually the average strategy) to a JSON object.
+  // Args:
+  //   dump_evs: If true, include calculated expected values alongside the strategy.
+  //   max_depth: Optional maximum tree depth to dump (e.g., only up to the turn).
+  //              A negative value typically means dump the entire relevant tree.
+  // Returns:
+  //   A json object representing the strategy and potentially EVs.
+  virtual json DumpStrategy(bool dump_evs, int max_depth = -1) const = 0;
 
-    /**
-     * @brief Exports the computed strategies.
-     *
-     * In a complete implementation, this would extract the average strategy from each Trainable node,
-     * and output the results (e.g. to a JSON object or file). Here, we simply print a message.
-     */
-    void exportStrategies() const;
+  // Returns a shared pointer to the game tree being solved.
+  std::shared_ptr<core::GameTree> GetGameTree() const { return game_tree_; }
 
-private:
-    Rule rule_;                                   ///< The game rule configuration.
-    std::shared_ptr<GameTree> gameTree_;          ///< The game tree that will be built and solved.
+ protected:
+  // Constructor for derived classes.
+  // Args:
+  //   game_tree: A shared pointer to the game tree to be solved.
+  explicit Solver(std::shared_ptr<core::GameTree> game_tree)
+      : game_tree_(std::move(game_tree)) {}
+
+  // Default constructor (protected).
+  Solver() = default;
+
+  // The game tree instance the solver operates on.
+  std::shared_ptr<core::GameTree> game_tree_;
+
+ private:
+  // Deleted copy/move operations to prevent slicing and enforce ownership semantics.
+  Solver(const Solver&) = delete;
+  Solver& operator=(const Solver&) = delete;
+  Solver(Solver&&) = delete;
+  Solver& operator=(Solver&&) = delete;
 };
 
-} // namespace PokerSolver
+} // namespace solver
+} // namespace poker_solver
 
-#endif // POKERSOLVER_SOLVER_H
+#endif // POKER_SOLVER_SOLVER_SOLVER_H_

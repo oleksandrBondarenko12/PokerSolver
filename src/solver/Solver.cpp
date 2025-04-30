@@ -1,63 +1,32 @@
-#include "Solver.h"
-#include "GameTreeNode.h"
-#include <iostream>
+#include "solver/Solver.h" // Adjust path if necessary
+#include "GameTree.h" // Include full GameTree definition
+#include <utility> // For std::move
+#include <stdexcept> // For std::invalid_argument
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace solver {
 
-// A simple dummy node type to serve as the root of our game tree.
-// In a full implementation, the root would be built by the game tree builder.
-class DummyNode : public GameTreeNode {
-public:
-    DummyNode() : GameTreeNode(GameRound::Preflop, 0.0, nullptr) {}
-    NodeType type() const override { return NodeType::Action; }
-    std::string nodeTypeToString() const override { return "Dummy"; }
-};
+// --- Constructors ---
 
-Solver::Solver(const Rule& rule)
-    : rule_(rule)
-{
-    // Initially, the game tree is uninitialized.
-    gameTree_ = nullptr;
-}
+// Default constructor definition removed (already defaulted in header)
+// Solver::Solver() = default;
 
-void Solver::initialize() {
-    // Build the game tree from the rule.
-    // Here we create a dummy root node—this should be replaced with a proper game tree
-    // builder that uses the Rule and various StreetSettings.
-    std::shared_ptr<GameTreeNode> root = std::make_shared<DummyNode>();
+// Constructor taking a GameTree definition removed (already defined via initializer list in header)
+// Solver::Solver(std::shared_ptr<core::GameTree> game_tree)
+//     : game_tree_(std::move(game_tree)) {
+//     if (!game_tree_) {
+//         // Optionally throw if a null tree is unacceptable
+//         // throw std::invalid_argument("GameTree pointer cannot be null for Solver.");
+//     }
+// }
 
-    // Construct the GameTree container using the root node.
-    gameTree_ = std::make_shared<GameTree>(root);
+// Destructor implementation is defaulted in header.
 
-    std::cout << "Solver initialized: Game tree created with root type: " 
-              << root->nodeTypeToString() << "\n";
-}
+// GetGameTree() is implemented inline in the header.
 
-void Solver::run(int iterations) {
-    if (!gameTree_) {
-        std::cerr << "Error: Game tree is uninitialized. Call initialize() before running the solver.\n";
-        return;
-    }
-    std::cout << "Running solver for " << iterations << " iterations...\n";
+// Pure virtual functions (Train, Stop, DumpStrategy) have no implementation here
+// as this is an abstract base class. Concrete solver implementations (like PCfrSolver)
+// will provide these.
 
-    // In a full solver implementation, each iteration would:
-    //   - Traverse the game tree.
-    //   - Update regrets and strategies via the Trainable modules.
-    //   - Possibly perform sampling and counterfactual calculations.
-    // Here we simulate the iterative process.
-    for (int i = 0; i < iterations; ++i) {
-        // Placeholder: in reality, we would call an iterate() method here.
-        std::cout << "Iteration " << (i + 1) << " completed.\n";
-    }
-    std::cout << "Solver run completed.\n";
-}
-
-void Solver::exportStrategies() const {
-    // In a complete implementation, this method would traverse the game tree,
-    // extract the average strategy from each node (by calling dumpStrategy on Trainable objects),
-    // and then output the cumulative strategy (for instance, to JSON).
-    // For now, we display a placeholder message.
-    std::cout << "Exporting strategies (not implemented in this simplified version).\n";
-}
-
-} // namespace PokerSolver
+} // namespace solver
+} // namespace poker_solver

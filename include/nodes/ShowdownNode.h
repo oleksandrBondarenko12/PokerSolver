@@ -1,57 +1,81 @@
-#ifndef POKERSOLVER_SHOWDOWNNODE_H
-#define POKERSOLVER_SHOWDOWNNODE_H
+#ifndef POKER_SOLVER_NODES_SHOWDOWN_NODE_H_
+#define POKER_SOLVER_NODES_SHOWDOWN_NODE_H_
 
-#include "GameTreeNode.h"
+#include "nodes/GameTreeNode.h" // Base class and enums
+#include "compairer/Compairer.h"      // <<< ADD THIS INCLUDE for ComparisonResult
 #include <vector>
-#include <string>
-#include <stdexcept>
+#include <memory>    // For std::shared_ptr
+#include <stdexcept> // For exceptions
+#include <sstream>   // For error messages
+#include <cstddef>   // For size_t
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace nodes {
 
-// A specialized node type for showdown outcomes.
-class ShowdownNode : public GameTreeNode {
-public:
-    // Enumeration to indicate the type of showdown outcome.
-    enum class ShowdownResult {
-        NotTie, // a clear winning outcome
-        Tie     // tied outcome: the pot is split among players
-    };
+// Represents a terminal node in the game tree where the hand outcome is
+// determined by comparing the hands of the remaining players (showdown).
+class ShowdownNode : public core::GameTreeNode {
+ public:
+  // Constructor.
+  // Args:
+  //   round: The final betting round (should always be kRiver).
+  //   pot: The final pot size at showdown.
+  //   parent: Weak pointer to the parent node.
+  //   num_players: The number of players involved in the game (usually 2).
+  //   initial_commitments: Vector containing the total amount committed by each
+  //                        player throughout the hand (e.g., {ip_commit, oop_commit}).
+  //                        Used to calculate net payoffs.
+  // Throws:
+  //   std::invalid_argument if num_players != initial_commitments.size() or
+  //                         if num_players is not 2 (currently).
+  ShowdownNode(core::GameRound round,
+               double pot,
+               std::weak_ptr<GameTreeNode> parent,
+               size_t num_players,
+               const std::vector<double>& initial_commitments);
 
-    // Constructor.
-    // tiePayoffs: vector of payoffs for each player in case of a tie.
-    // playerPayoffs: matrix of payoffs for non-tie outcome; each row corresponds to the winning player,
-    //                and each column gives that player's payoff against each opponent or scenario.
-    // round: the game round (should be River or Turn/Flop as applicable).
-    // pot: the current pot size.
-    // parent: pointer to the parent node (if any).
-    ShowdownNode(const std::vector<double>& tiePayoffs,
-                 const std::vector<std::vector<double>>& playerPayoffs,
-                 GameRound round,
-                 double pot,
-                 std::shared_ptr<GameTreeNode> parent = nullptr);
 
-    // Override the pure virtual methods from GameTreeNode.
-    NodeType type() const override;
-    std::string nodeTypeToString() const override;
+  // Virtual destructor.
+  ~ShowdownNode() override = default;
 
-    // Returns the complete payoff vector for a given outcome.
-    // If result == Tie, returns the tiePayoffs vector;
-    // if result == NotTie, returns the payoff vector for the winning player (given by 'winner').
-    std::vector<double> getPayoffs(ShowdownResult result, int winner) const;
+  // --- Overridden Methods ---
+  core::GameTreeNodeType GetNodeType() const override {
+    return core::GameTreeNodeType::kShowdown;
+  }
 
-    // Returns a single payoff value.
-    // If result == Tie, returns the payoff for the specified player;
-    // if result == NotTie, returns the payoff for the specified player from the winner's payoff row.
-    double getPayoff(ShowdownResult result, int winner, int player) const;
+  // --- Payoff Retrieval ---
 
-private:
-    // Data for tied outcomes: one payoff per player.
-    std::vector<double> tiePayoffs_;
+  // Gets the vector of payoffs for all players based on the showdown outcome.
+  // Args:
+  //   result: The result of the hand comparison (kTie, kPlayer1Wins, kPlayer2Wins).
+  // Returns:
+  //   A const reference to the vector where index `i` contains the net payoff for player `i`.
+  // Throws:
+  //   std::logic_error if called before payoffs are calculated (shouldn't happen).
+  const std::vector<double>& GetPayoffs(core::ComparisonResult result) const; // Use qualified name
 
-    // Data for non–tie outcomes: each row corresponds to a winning player's payoff distribution.
-    std::vector<std::vector<double>> playerPayoffs_;
+
+ private:
+  // Calculates and stores the payoff vectors based on initial commitments.
+  void CalculatePayoffs(size_t num_players, const std::vector<double>& commitments);
+
+  // --- Member Variables ---
+
+  // Payoffs if player 0 (IP) wins outright. Index is player index.
+  std::vector<double> payoffs_p0_wins_;
+  // Payoffs if player 1 (OOP) wins outright. Index is player index.
+  std::vector<double> payoffs_p1_wins_;
+  // Payoffs if the result is a tie. Index is player index.
+  std::vector<double> payoffs_tie_;
+
+  // Deleted copy/move operations.
+  ShowdownNode(const ShowdownNode&) = delete;
+  ShowdownNode& operator=(const ShowdownNode&) = delete;
+  ShowdownNode(ShowdownNode&&) = delete;
+  ShowdownNode& operator=(ShowdownNode&&) = delete;
 };
 
-} // namespace PokerSolver
+} // namespace nodes
+} // namespace poker_solver
 
-#endif // POKERSOLVER_SHOWDOWNNODE_H
+#endif // POKER_SOLVER_NODES_SHOWDOWN_NODE_H_

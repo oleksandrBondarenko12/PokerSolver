@@ -1,61 +1,113 @@
-#ifndef POKERSOLVER_ACTIONNODE_H
-#define POKERSOLVER_ACTIONNODE_H
+#ifndef POKER_SOLVER_NODES_ACTION_NODE_H_
+#define POKER_SOLVER_NODES_ACTION_NODE_H_
 
-#include "GameTreeNode.h"
-#include "GameActions.h"    // For the GameActions type
-#include "trainable/Trainable.h"      // For the pointer to Trainable instances
+#include "GameTreeNode.h" // Base class and enums
+#include "GameActions.h"   // For GameAction
+#include "ranges/PrivateCards.h"  // For PrivateCards (range association)
 #include <vector>
-#include <memory>
+#include <memory> // For std::shared_ptr
+#include <cstddef> // For size_t
+#include <optional> // For optional return values
 
-namespace PokerSolver {
+// Forward declaration for Trainable interface
+namespace poker_solver { namespace solver { class Trainable; } }
+// Forward declaration for concrete Trainable types (if needed in header, though unlikely)
+// namespace poker_solver { namespace solver { class DiscountedCfrTrainable; } }
 
-// ActionNode represents a decision node in the game tree where a player chooses among a set of actions.
-class ActionNode : public GameTreeNode {
-public:
-    // Constructor: creates an ActionNode for a given game round, pot, parent node,
-    // the acting player's index, and the list of available actions.
-    ActionNode(GameRound round,
-               double pot,
-               std::shared_ptr<GameTreeNode> parent,
-               int player,
-               const std::vector<GameActions>& actions);
+namespace poker_solver {
+namespace nodes {
 
-    // Virtual destructor
-    virtual ~ActionNode();
+// Represents a decision node in the game tree where a player must choose an action.
+class ActionNode : public core::GameTreeNode {
+ public:
+  // Enum to specify float precision for Trainable objects (if needed)
+  enum class TrainablePrecision { kFloat, kHalf, kSingle }; // Example
 
-    // --- Overrides from GameTreeNode ---
-    NodeType type() const override;
-    std::string nodeTypeToString() const override;
+  // Constructor.
+  // Args:
+  //   player_index: The index of the player whose turn it is (0=IP, 1=OOP).
+  //   round: The current game round.
+  //   pot: The pot size at this node.
+  //   parent: Weak pointer to the parent node.
+  //   num_possible_deals: The number of different abstract chance outcomes
+  //                       that can lead to this game state. This determines
+  //                       the size of the trainables_ vector for imperfect recall.
+  //                       Defaults to 1 for perfect recall scenarios.
+  ActionNode(size_t player_index,
+             core::GameRound round,
+             double pot,
+             std::weak_ptr<GameTreeNode> parent,
+             size_t num_possible_deals = 1); // Default to 1 trainable state
 
-    // --- Accessors ---
-    // Returns the player index who is to act in this node.
-    int player() const;
+  // Virtual destructor.
+  ~ActionNode() override = default;
 
-    // Returns the list of available actions.
-    const std::vector<GameActions>& actions() const;
+  // --- Overridden Methods ---
+  core::GameTreeNodeType GetNodeType() const override {
+    return core::GameTreeNodeType::kAction;
+  }
 
-    // Returns the child nodes (each child represents the result of taking an action).
-    const std::vector<std::shared_ptr<GameTreeNode>>& children() const;
+  // --- Accessors ---
+  size_t GetPlayerIndex() const { return player_index_; }
+  const std::vector<core::GameAction>& GetActions() const { return actions_; }
+  const std::vector<std::shared_ptr<GameTreeNode>>& GetChildren() const {
+    return children_;
+  }
 
-    // Returns the trainable instance for a given action index.
-    // (Each action branch can be trained separately.)
-    std::shared_ptr<Trainable> getTrainable(int actionIndex) const;
+  // --- Modifiers (Used during tree construction) ---
+  void AddChild(core::GameAction action, std::shared_ptr<GameTreeNode> child);
+  // Sets the actions and children directly (less common than AddChild)
+  void SetActionsAndChildren(
+      std::vector<core::GameAction> actions,
+      std::vector<std::shared_ptr<GameTreeNode>> children);
 
-    // --- Mutators and helpers ---
-    // Adds a child node to the list of children.
-    void addChild(const std::shared_ptr<GameTreeNode>& child);
+  // --- Trainable Management ---
 
-    // Associates a Trainable instance with an action index.
-    void setTrainable(int actionIndex, std::shared_ptr<Trainable> trainable);
+  // Associates the relevant player range with this node.
+  // This pointer's lifetime must be managed externally (e.g., by the Solver).
+  void SetPlayerRange(const std::vector<core::PrivateCards>* player_range);
 
-private:
-    int player_; // The index of the player who is to act at this node.
-    std::vector<GameActions> actions_; // List of available game actions.
-    std::vector<std::shared_ptr<GameTreeNode>> children_; // Child nodes resulting from each action.
-    // A vector of Trainable pointers—one for each available action.
-    std::vector<std::shared_ptr<Trainable>> trainables_;
+  // Gets the Trainable object associated with a specific deal abstraction index.
+  // Lazily creates the Trainable object if it doesn't exist.
+  // Args:
+  //   deal_index: The index representing the abstract chance outcome (0 for
+  //               perfect recall, 0 to num_possible_deals-1 for imperfect recall).
+  //   precision: The desired float precision for the Trainable object.
+  // Returns:
+  //   A shared pointer to the Trainable object.
+  // Throws:
+  //   std::out_of_range if deal_index is invalid.
+  //   std::runtime_error if player_range_ has not been set.
+  //   std::bad_alloc if creation fails.
+  std::shared_ptr<solver::Trainable> GetTrainable(
+      size_t deal_index,
+      TrainablePrecision precision = TrainablePrecision::kFloat);
+
+  // Gets the Trainable object without creating it if it doesn't exist.
+  std::shared_ptr<solver::Trainable> GetTrainableIfExists(size_t deal_index) const;
+
+
+ private:
+  size_t player_index_; // Player whose turn it is (0=IP, 1=OOP)
+  std::vector<core::GameAction> actions_; // Possible actions from this node
+  std::vector<std::shared_ptr<GameTreeNode>> children_; // Resulting child nodes
+
+  // Pointer to the relevant player range (must be set before GetTrainable).
+  // Lifetime managed externally. Raw pointer is acceptable if lifetime is guaranteed.
+  const std::vector<core::PrivateCards>* player_range_ = nullptr;
+
+  // Strategy/regret storage. Vector size depends on abstraction/recall level.
+  // Size is determined by num_possible_deals in the constructor.
+  std::vector<std::shared_ptr<solver::Trainable>> trainables_;
+
+  // Deleted copy/move operations because we manage shared_ptrs and a raw pointer.
+  ActionNode(const ActionNode&) = delete;
+  ActionNode& operator=(const ActionNode&) = delete;
+  ActionNode(ActionNode&&) = delete;
+  ActionNode& operator=(ActionNode&&) = delete;
 };
 
-} // namespace PokerSolver
+} // namespace nodes
+} // namespace poker_solver
 
-#endif // POKERSOLVER_ACTIONNODE_H
+#endif // POKER_SOLVER_NODES_ACTION_NODE_H_

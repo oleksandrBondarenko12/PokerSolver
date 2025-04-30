@@ -1,15 +1,14 @@
-#include "card.h" // Adjust path if necessary
+#include "Card.h" // Adjust path if necessary
 
 #include <stdexcept>
 #include <sstream>   // For error message formatting
 #include <algorithm> // For std::find
+#include <cctype>    // For std::tolower, std::toupper
 
 namespace poker_solver {
 namespace core {
 
 // --- Constants for Ranks and Suits ---
-// Note: These are defined here to avoid static initialization order issues
-// if they were defined directly in the header for non-integral types.
 const std::array<char, kNumRanks> kRankChars = {
     '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'
 };
@@ -43,7 +42,6 @@ char Card::RankIndexToChar(int rank_index) {
 }
 
 int Card::SuitCharToIndex(char suit_char) {
-    // Consider lowercase version for robustness
     char lower_suit = std::tolower(suit_char);
     for (int i = 0; i < kNumSuits; ++i) {
         if (lower_suit == kSuitChars[i]) {
@@ -54,7 +52,6 @@ int Card::SuitCharToIndex(char suit_char) {
 }
 
 int Card::RankCharToIndex(char rank_char) {
-    // Consider uppercase version for robustness
     char upper_rank = std::toupper(rank_char);
      for (int i = 0; i < kNumRanks; ++i) {
         if (upper_rank == kRankChars[i]) {
@@ -95,21 +92,31 @@ std::string Card::ToString() const {
     return IntToString(card_int_.value());
 }
 
+// --- Comparison Operators ---
+
+bool Card::operator==(const Card& other) const {
+    // Two cards are equal if their internal optional<int> representations are equal.
+    // This correctly handles two empty cards being equal, and an empty card
+    // not being equal to a valid card.
+    return card_int_ == other.card_int_;
+}
+
+bool Card::operator!=(const Card& other) const {
+    return !(*this == other);
+}
+
+
 // --- Static Conversion Utilities ---
 
 std::optional<int> Card::StringToInt(std::string_view card_str) {
     if (card_str.length() != 2) {
         return std::nullopt;
     }
-
     int rank_index = RankCharToIndex(card_str[0]);
     int suit_index = SuitCharToIndex(card_str[1]);
-
     if (rank_index == -1 || suit_index == -1) {
         return std::nullopt;
     }
-
-    // Formula: card_int = rank_index * num_suits + suit_index
     return rank_index * kNumSuits + suit_index;
 }
 
@@ -117,10 +124,8 @@ std::string Card::IntToString(int card_int) {
     if (!IsValidCardInt(card_int)) {
         return "Invalid";
     }
-
-    int rank_index = card_int / kNumSuits; // 0='2', ..., 12='A'
-    int suit_index = card_int % kNumSuits; // 0='c', 1='d', 2='h', 3='s'
-
+    int rank_index = card_int / kNumSuits;
+    int suit_index = card_int % kNumSuits;
     std::string s;
     s += RankIndexToChar(rank_index);
     s += SuitIndexToChar(suit_index);
@@ -132,7 +137,6 @@ std::string Card::IntToString(int card_int) {
 uint64_t Card::CardIntsToUint64(const std::vector<int>& card_ints) {
     uint64_t board_mask = 0;
     for (int card_int : card_ints) {
-        // Delegate validation to CardIntToUint64
         board_mask |= CardIntToUint64(card_int);
     }
     return board_mask;
@@ -141,7 +145,6 @@ uint64_t Card::CardIntsToUint64(const std::vector<int>& card_ints) {
 uint64_t Card::CardsToUint64(const std::vector<Card>& cards) {
     uint64_t board_mask = 0;
     for (const auto& card : cards) {
-        // Skips empty cards, delegates validation
         board_mask |= CardToUint64(card);
     }
     return board_mask;
@@ -153,7 +156,6 @@ uint64_t Card::CardIntToUint64(int card_int) {
         oss << "Invalid card integer for bitmask: " << card_int;
         throw std::out_of_range(oss.str());
     }
-    // Set the bit corresponding to the card's index
     return static_cast<uint64_t>(1) << card_int;
 }
 
@@ -161,16 +163,13 @@ uint64_t Card::CardToUint64(const Card& card) {
     if (card.IsEmpty()) {
         return 0;
     }
-    // Assumes card_int is valid if !IsEmpty()
     return static_cast<uint64_t>(1) << card.card_int().value();
 }
 
 std::vector<int> Card::Uint64ToCardInts(uint64_t board_mask) {
     std::vector<int> card_ints;
-    // Reserve approximate space - max 7 cards usually relevant in Hold'em
     card_ints.reserve(7);
     for (int i = 0; i < kNumCardsInDeck; ++i) {
-        // Check if the i-th bit is set
         if ((board_mask >> i) & 1) {
             card_ints.push_back(i);
         }
@@ -180,10 +179,9 @@ std::vector<int> Card::Uint64ToCardInts(uint64_t board_mask) {
 
 std::vector<Card> Card::Uint64ToCards(uint64_t board_mask) {
     std::vector<Card> cards;
-    cards.reserve(7); // Approximate capacity
+    cards.reserve(7);
     std::vector<int> card_ints = Uint64ToCardInts(board_mask);
     for (int card_int : card_ints) {
-        // Construction handles validation
         cards.emplace_back(card_int);
     }
     return cards;

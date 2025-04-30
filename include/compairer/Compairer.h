@@ -1,49 +1,76 @@
-#ifndef POKERSOLVER_COMPAIRER_H
-#define POKERSOLVER_COMPAIRER_H
+#ifndef POKER_SOLVER_CORE_COMPAIRER_H_
+#define POKER_SOLVER_CORE_COMPAIRER_H_
 
-#include "Card.h"
-#include "ranges/PrivateCards.h"
+#include "Card.h" // For Card definition (adjust path if needed)
 #include <vector>
+#include <cstdint>
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace core {
 
-/// @brief The Compairer interface defines how to compare two poker hands.
-/// 
-/// It provides a pure virtual function for comparing two hands given private and board cards,
-/// as well as a method for evaluating the rank (strength) of a hand.
+// Enum representing the result of comparing two poker hands.
+enum class ComparisonResult { kPlayer1Wins, kPlayer2Wins, kTie };
+
+// Abstract base class (interface) for poker hand evaluation and comparison.
+// Concrete implementations will provide specific evaluation logic (e.g., using
+// lookup tables).
 class Compairer {
-public:
-    /// @brief Represents the result of comparing two poker hands.
-    enum class ComparisonResult {
-        LARGER,   // The first hand is stronger.
-        EQUAL,    // The hands are of equal strength.
-        SMALLER   // The first hand is weaker.
-    };
+ public:
+  // Virtual destructor is essential for base classes.
+  virtual ~Compairer() = default;
 
-    /// Virtual destructor for safe polymorphic deletion.
-    virtual ~Compairer() = default;
+  // Compares two players' private hands given a shared public board.
+  // Args:
+  //   private_hand1: Vector of card integers for player 1's hole cards.
+  //   private_hand2: Vector of card integers for player 2's hole cards.
+  //   public_board: Vector of card integers for the community cards.
+  // Returns:
+  //   ComparisonResult indicating which hand is stronger or if it's a tie.
+  virtual ComparisonResult CompareHands(
+      const std::vector<int>& private_hand1,
+      const std::vector<int>& private_hand2,
+      const std::vector<int>& public_board) const = 0;
 
-    /// @brief Compares two hands given their private cards and the public board.
-    /// 
-    /// @param privateHand1 The first player’s private cards.
-    /// @param privateHand2 The second player’s private cards.
-    /// @param board The shared public board cards.
-    /// @return ComparisonResult indicating whether the first hand is LARGER, EQUAL, or SMALLER.
-    virtual ComparisonResult compare(const std::vector<Card>& privateHand1,
-                                     const std::vector<Card>& privateHand2,
-                                     const std::vector<Card>& board) const = 0;
+  // Compares two players' private hands given a shared public board (uint64_t version).
+  // Args:
+  //   private_mask1: Bitmask for player 1's hole cards.
+  //   private_mask2: Bitmask for player 2's hole cards.
+  //   public_mask: Bitmask for the community cards.
+  // Returns:
+  //   ComparisonResult indicating which hand is stronger or if it's a tie.
+  virtual ComparisonResult CompareHands(uint64_t private_mask1,
+                                        uint64_t private_mask2,
+                                        uint64_t public_mask) const = 0;
 
-    /// @brief Evaluates and returns a numerical rank for a given hand.
-    /// 
-    /// A higher rank value indicates a stronger hand.
-    ///
-    /// @param privateHand The player's private cards.
-    /// @param board The public board cards.
-    /// @return int representing the hand’s rank.
-    virtual int getRank(const std::vector<Card>& privateHand,
-                        const std::vector<Card>& board) const = 0;
+
+  // Calculates the rank (strength) of a single hand combined with public cards.
+  // Lower ranks typically represent stronger hands (e.g., 1 = Straight Flush).
+  // The exact ranking scale depends on the concrete implementation.
+  // Args:
+  //   private_hand: Vector of card integers for the player's hole cards.
+  //   public_board: Vector of card integers for the community cards.
+  // Returns:
+  //   An integer representing the hand's rank. Returns a value indicating
+  //   an invalid hand or error if inputs are inconsistent (e.g., overlapping cards).
+  virtual int GetHandRank(const std::vector<int>& private_hand,
+                          const std::vector<int>& public_board) const = 0;
+
+  // Calculates the rank of a hand represented by bitmasks.
+  // Args:
+  //   private_mask: Bitmask for the player's hole cards.
+  //   public_mask: Bitmask for the community cards.
+  // Returns:
+  //   An integer representing the hand's rank.
+  virtual int GetHandRank(uint64_t private_mask,
+                          uint64_t public_mask) const = 0;
+
+
+ protected:
+  // Protected default constructor to allow inheritance but prevent direct instantiation.
+   Compairer() = default;
 };
 
-} // namespace PokerSolver
+} // namespace core
+} // namespace poker_solver
 
-#endif // POKERSOLVER_COMPAIRER_H
+#endif // POKER_SOLVER_CORE_COMPAIRER_H_

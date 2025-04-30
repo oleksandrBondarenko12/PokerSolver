@@ -1,84 +1,95 @@
-#ifndef POKERSOLVER_RIVERRANGEMANAGER_H
-#define POKERSOLVER_RIVERRANGEMANAGER_H
+#ifndef POKER_SOLVER_RANGES_RIVER_RANGE_MANAGER_H_
+#define POKER_SOLVER_RANGES_RIVER_RANGE_MANAGER_H_
 
-#include "RiverCombs.h"         // Definition of RiverCombs
-#include "PrivateCards.h"       // Definition of PrivateCards
-#include "Card.h"               // Definition of Card
-#include "compairer/Compairer.h" // Interface for hand evaluation
-
+#include "ranges/RiverCombs.h"     // For RiverCombs struct
+#include "compairer/Compairer.h"         // For Compairer interface
+#include "ranges/PrivateCards.h"     // For PrivateCards
+#include "Card.h"              // For Card utilities
 #include <vector>
+#include <cstdint>
 #include <unordered_map>
-#include <memory>               // For std::shared_ptr
-#include <mutex>                // For std::mutex
-#include <cstdint>              // For uint64_t
+#include <memory>                   // For std::shared_ptr
+#include <mutex>                    // For std::mutex, std::lock_guard
+#include <stdexcept>                // For exceptions
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace ranges {
 
-/**
- * @brief Manages the computation and caching of ranked hand combinations at the river.
- *
- * This class takes a player's range (vector of PrivateCards) and a specific river board,
- * evaluates each valid hand combination using a Compairer, ranks them, and caches
- * the results. It ensures thread safety for concurrent access.
- */
+// Manages the calculation and caching of evaluated hand strengths (ranks)
+// for player ranges on specific river boards.
+// This class is designed to be thread-safe for concurrent read/write access.
 class RiverRangeManager {
-public:
-    /**
-     * @brief Default constructor. Initializes an empty manager without a hand evaluator.
-     * A hand evaluator must be set later or provided via the other constructor.
-     */
-    RiverRangeManager() = default;
+ public:
+  // Constructor.
+  // Args:
+  //   compairer: A shared pointer to a concrete Compairer implementation
+  //              used for hand evaluation. Must not be null.
+  // Throws:
+  //   std::invalid_argument if compairer is null.
+  explicit RiverRangeManager(std::shared_ptr<core::Compairer> compairer);
 
-    /**
-     * @brief Constructs a RiverRangeManager with a specific hand evaluator.
-     * @param handEvaluator A shared pointer to an object implementing the Compairer interface.
-     */
-    explicit RiverRangeManager(std::shared_ptr<Compairer> handEvaluator);
+  // Calculates or retrieves the cached vector of evaluated RiverCombs for a
+  // given player, their initial range, and a specific river board.
+  // The resulting vector is sorted by rank (worst hand first, i.e., highest
+  // rank number first, consistent with the original project's sort order).
+  // Args:
+  //   player_index: The index of the player (0 or 1).
+  //   initial_player_range: The vector of PrivateCards representing the player's
+  //                         range *before* considering the river board.
+  //   river_board_mask: The uint64_t bitmask of the 5 river board cards.
+  // Returns:
+  //   A const reference to the cached or newly calculated vector of RiverCombs.
+  // Throws:
+  //   std::out_of_range if player_index is invalid (currently only supports 0 or 1).
+  //   std::invalid_argument if river_board_mask doesn't represent exactly 5 cards.
+  const std::vector<RiverCombs>& GetRiverCombos(
+      size_t player_index,
+      const std::vector<core::PrivateCards>& initial_player_range,
+      uint64_t river_board_mask);
 
-    /**
-     * @brief Retrieves the ranked river combinations for a given player, range, and board.
-     *
-     * If the combinations for this specific board have been computed before, a cached result
-     * is returned. Otherwise, it computes the ranks, sorts the combinations, caches the result,
-     * and then returns it.
-     *
-     * @param player The index of the player (e.g., 0 for OOP, 1 for IP).
-     * @param range The vector of PrivateCards representing the player's hand range reaching the river.
-     * @param board The vector of Card objects representing the 5 community cards on the river.
-     * @return const std::vector<RiverCombs>& A const reference to the vector of ranked RiverCombs.
-     * The vector is sorted by rank (strongest first, assuming higher rank is better).
-     * @throws std::runtime_error if the hand evaluator is not set.
-     * @throws std::out_of_range if the player index is invalid.
-     */
-    const std::vector<RiverCombs>& getRiverCombos(int player,
-                                                  const std::vector<PrivateCards>& range,
-                                                  const std::vector<Card>& board);
+  // Overload that accepts the river board as a vector of card integers.
+  // Throws:
+  //   std::invalid_argument if river_board_ints contains invalid card integers
+  //                         or does not represent exactly 5 cards.
+  //   std::out_of_range if player_index is invalid.
+  const std::vector<RiverCombs>& GetRiverCombos(
+       size_t player_index,
+       const std::vector<core::PrivateCards>& initial_player_range,
+       const std::vector<int>& river_board_ints);
 
-    /**
-     * @brief Sets the hand evaluator to be used for ranking.
-     * @param handEvaluator A shared pointer to an object implementing the Compairer interface.
-     */
-    void setHandEvaluator(std::shared_ptr<Compairer> handEvaluator);
+ private:
+  // Calculates, sorts, and caches the RiverCombs for a given player/board.
+  // This is called internally by GetRiverCombos if the result isn't cached.
+  // Assumes the cache lock is NOT held when called.
+  // Returns a const reference to the newly inserted element in the cache.
+  const std::vector<RiverCombs>& CalculateAndCacheRiverCombos(
+      size_t player_index,
+      const std::vector<core::PrivateCards>& initial_player_range,
+      uint64_t river_board_mask);
 
-private:
-    /**
-     * @brief Computes a 64-bit bitmask representation of the board cards.
-     * @param board A vector of Card objects representing the board.
-     * @return uint64_t A bitmask where each card corresponds to a set bit.
-     */
-    uint64_t getBoardMask(const std::vector<Card>& board) const;
+  // --- Member Variables ---
 
-    // Cache for player 0's river ranges, keyed by board mask.
-    std::unordered_map<uint64_t, std::vector<RiverCombs>> p1RiverRanges_;
-    // Cache for player 1's river ranges, keyed by board mask.
-    std::unordered_map<uint64_t, std::vector<RiverCombs>> p2RiverRanges_;
+  // The hand evaluator used to determine ranks.
+  std::shared_ptr<core::Compairer> compairer_;
 
-    // The hand evaluator used to rank combinations.
-    std::shared_ptr<Compairer> handEvaluator_;
-    // Mutex to protect concurrent access to the range maps.
-    std::mutex maplock_;
+  // Caches for evaluated river ranges. Key is the river board mask.
+  // Separate caches per player (assuming 2 players).
+  std::unordered_map<uint64_t, std::vector<RiverCombs>> player_0_cache_;
+  std::unordered_map<uint64_t, std::vector<RiverCombs>> player_1_cache_;
+
+  // Mutexes to protect access to each player's cache during lookups/insertions.
+  // Using mutable allows locking within const member functions like GetRiverCombos.
+  mutable std::mutex player_0_cache_mutex_;
+  mutable std::mutex player_1_cache_mutex_;
+
+  // Deleted copy/move operations to prevent accidental copying of caches/mutexes.
+  RiverRangeManager(const RiverRangeManager&) = delete;
+  RiverRangeManager& operator=(const RiverRangeManager&) = delete;
+  RiverRangeManager(RiverRangeManager&&) = delete;
+  RiverRangeManager& operator=(RiverRangeManager&&) = delete;
 };
 
-} // namespace PokerSolver
+} // namespace ranges
+} // namespace poker_solver
 
-#endif // POKERSOLVER_RIVERRANGEMANAGER_H
+#endif // POKER_SOLVER_RANGES_RIVER_RANGE_MANAGER_H_

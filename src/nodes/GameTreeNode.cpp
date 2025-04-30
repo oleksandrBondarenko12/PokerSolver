@@ -1,90 +1,56 @@
-#include "GameTreeNode.h"
-#include <sstream>
-#include <cassert>
+#include "nodes/GameTreeNode.h" // Adjust path if necessary
 
-namespace PokerSolver {
 
-// -----------------------------------------------------------------------------
-// Constructors and Destructor
+#include <utility> // For std::move
 
-GameTreeNode::GameTreeNode()
-    : round_(GameRound::Preflop), pot_(0.0), depth_(0)
-{
-    // No parent given → depth is 0
-}
+namespace poker_solver {
+namespace core {
 
-GameTreeNode::GameTreeNode(GameRound round, double pot, std::shared_ptr<GameTreeNode> parent)
-    : round_(round), pot_(pot), parent_(parent), depth_(parent ? parent->depth() + 1 : 0)
-{
-}
+// --- Constructor ---
 
-GameTreeNode::~GameTreeNode() = default;
+// Protected constructor definition
+GameTreeNode::GameTreeNode(GameRound round, double pot,
+                           std::weak_ptr<GameTreeNode> parent)
+    : round_(round), pot_(pot), parent_(std::move(parent)) {}
 
-// -----------------------------------------------------------------------------
-// Accessor Implementations
 
-GameRound GameTreeNode::round() const {
-    return round_;
-}
-
-double GameTreeNode::pot() const {
-    return pot_;
-}
-
-std::shared_ptr<GameTreeNode> GameTreeNode::parent() const {
-    return parent_.lock();
-}
-
-int GameTreeNode::depth() const {
-    return depth_;
-}
-
-// -----------------------------------------------------------------------------
-// Mutator Implementations
-
-void GameTreeNode::setParent(std::shared_ptr<GameTreeNode> parent) {
+// --- SetParent Method ---
+void GameTreeNode::SetParent(std::shared_ptr<GameTreeNode> parent) {
+    // Store the parent as a weak_ptr
     parent_ = parent;
-    depth_ = parent ? parent->depth() + 1 : 0;
 }
 
-void GameTreeNode::setPot(double pot) {
-    pot_ = pot;
+
+// --- Static Helpers ---
+
+GameRound GameTreeNode::IntToGameRound(int round_int) {
+  switch (round_int) {
+    case 0: return GameRound::kPreflop;
+    case 1: return GameRound::kFlop;
+    case 2: return GameRound::kTurn;
+    case 3: return GameRound::kRiver;
+    default: { // Use braces for scope within switch case
+        std::ostringstream oss;
+        oss << "Invalid integer for GameRound: " << round_int;
+        throw std::out_of_range(oss.str());
+      }
+  }
 }
 
-void GameTreeNode::setRound(GameRound round) {
-    round_ = round;
+int GameTreeNode::GameRoundToInt(GameRound game_round) {
+  // Underlying enum type is int, direct cast is safe here.
+  return static_cast<int>(game_round);
 }
 
-// -----------------------------------------------------------------------------
-// Utility Method Implementations
-
-std::string GameTreeNode::toString() const {
-    std::ostringstream oss;
-    oss << "Node[Type: " << nodeTypeToString()
-        << ", Round: " << gameRoundToString(round_)
-        << ", Pot: " << pot_
-        << ", Depth: " << depth_ << "]";
-    return oss.str();
+std::string GameTreeNode::GameRoundToString(GameRound game_round) {
+  switch (game_round) {
+    case GameRound::kPreflop: return "Preflop";
+    case GameRound::kFlop:    return "Flop";
+    case GameRound::kTurn:    return "Turn";
+    case GameRound::kRiver:   return "River";
+    default:                  return "UnknownRound"; // Should not happen
+  }
 }
 
-std::string GameTreeNode::printHistory() const {
-    if (auto p = parent())
-        return p->printHistory() + " -> " + toString();
-    else
-        return toString();
-}
-
-// -----------------------------------------------------------------------------
-// Static Helper Functions
-
-std::string GameTreeNode::gameRoundToString(GameRound round) {
-    switch (round) {
-        case GameRound::Preflop: return "Preflop";
-        case GameRound::Flop:    return "Flop";
-        case GameRound::Turn:    return "Turn";
-        case GameRound::River:   return "River";
-        default:                 return "Unknown";
-    }
-}
-
-} // namespace PokerSolver
+} // namespace core
+} // namespace poker_solver

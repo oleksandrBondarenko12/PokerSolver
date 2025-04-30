@@ -1,100 +1,65 @@
-#include "Rule.h"
+#include "tools/Rule.h" // Adjust path if necessary
+#include <stdexcept> // Added for exceptions
+#include <sstream>   // Added for error messages
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace config {
 
-// -----------------------------------------------------------------------------
-// Constructor
-Rule::Rule(Deck deck,
-           float oopCommit,
-           float ipCommit,
-           GameRound currentRound,
-           int raiseLimit,
-           float smallBlind,
-           float bigBlind,
-           float stack,
-           const GameTreeBuildingSettings& buildSettings,
-           float allinThreshold)
-    : deck_(std::move(deck)),
-      oopCommit_(oopCommit),
-      ipCommit_(ipCommit),
-      currentRound_(currentRound),
-      raiseLimit_(raiseLimit),
-      smallBlind_(smallBlind),
-      bigBlind_(bigBlind),
-      stack_(stack),
-      buildSettings_(buildSettings),
-      allinThreshold_(allinThreshold)
-{
-    // For this implementation, we assume the initial effective stack is the full stack.
-    // Alternatively, it might be computed as: stack_ - (oopCommit_ + ipCommit_)
-    initialEffectiveStack_ = stack_;
+// --- Constructor ---
+
+Rule::Rule(const core::Deck& deck,
+           double initial_oop_commit,
+           double initial_ip_commit,
+           core::GameRound starting_round,
+           int raise_limit_per_street,
+           double small_blind,
+           double big_blind,
+           double initial_effective_stack,
+           const GameTreeBuildingSettings& build_settings,
+           double all_in_threshold_ratio)
+    : deck_(deck), // Copy the deck
+      initial_oop_commit_(initial_oop_commit),
+      initial_ip_commit_(initial_ip_commit),
+      starting_round_(starting_round),
+      raise_limit_per_street_(raise_limit_per_street),
+      small_blind_(small_blind),
+      big_blind_(big_blind),
+      initial_effective_stack_(initial_effective_stack),
+      build_settings_(build_settings), // Copy settings
+      all_in_threshold_ratio_(all_in_threshold_ratio) {
+
+    // Basic validation
+    if (initial_oop_commit < 0 || initial_ip_commit < 0 ||
+        small_blind < 0 || big_blind < 0 || initial_effective_stack <= 0) {
+         throw std::invalid_argument("Monetary values in Rule cannot be negative (stack must be positive).");
+    }
+     if (raise_limit_per_street < 0) {
+          throw std::invalid_argument("Raise limit cannot be negative.");
+     }
+     if (all_in_threshold_ratio < 0.0 || all_in_threshold_ratio > 1.0) {
+          throw std::invalid_argument("All-in threshold ratio must be between 0.0 and 1.0.");
+     }
 }
 
-// -----------------------------------------------------------------------------
-// Accessor Implementations
+// --- Methods ---
 
-Deck Rule::deck() const {
-    return deck_;
+double Rule::GetInitialPot() const {
+    return initial_oop_commit_ + initial_ip_commit_;
 }
 
-float Rule::oopCommit() const {
-    return oopCommit_;
-}
-
-float Rule::ipCommit() const {
-    return ipCommit_;
-}
-
-GameRound Rule::currentRound() const {
-    return currentRound_;
-}
-
-int Rule::raiseLimit() const {
-    return raiseLimit_;
-}
-
-float Rule::smallBlind() const {
-    return smallBlind_;
-}
-
-float Rule::bigBlind() const {
-    return bigBlind_;
-}
-
-float Rule::stack() const {
-    return stack_;
-}
-
-GameTreeBuildingSettings Rule::buildSettings() const {
-    return buildSettings_;
-}
-
-float Rule::allinThreshold() const {
-    return allinThreshold_;
-}
-
-float Rule::initialEffectiveStack() const {
-    return initialEffectiveStack_;
-}
-
-// -----------------------------------------------------------------------------
-// Utility Methods
-
-float Rule::getPot() const {
-    // In this simplified example, we define the pot as the sum of small blind, big blind,
-    // and both players' initial commitments.
-    return smallBlind_ + bigBlind_ + oopCommit_ + ipCommit_;
-}
-
-float Rule::getCommit(int player) const {
-    // Convention: player 0 is out-of-position (OOP), player 1 is in-position (IP)
-    if (player == 0) {
-        return oopCommit_;
-    } else if (player == 1) {
-        return ipCommit_;
+double Rule::GetInitialCommitment(size_t player_index) const {
+    if (player_index == 0) { // IP
+        return initial_ip_commit_;
+    } else if (player_index == 1) { // OOP
+        return initial_oop_commit_;
     } else {
-        throw std::invalid_argument("Rule::getCommit: Invalid player index (must be 0 or 1)");
+        std::ostringstream oss;
+        oss << "Invalid player index in GetInitialCommitment: " << player_index;
+        throw std::out_of_range(oss.str());
     }
 }
 
-} // namespace PokerSolver
+// Setters (SetInitialOopCommit, SetInitialIpCommit) are defined inline in the header file (rule.h)
+
+} // namespace config
+} // namespace poker_solver

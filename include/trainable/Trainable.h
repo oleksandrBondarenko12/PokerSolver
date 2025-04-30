@@ -1,57 +1,63 @@
-#ifndef POKERSOLVER_TRAINABLE_H
-#define POKERSOLVER_TRAINABLE_H
+#ifndef POKER_SOLVER_SOLVER_TRAINABLE_H_
+#define POKER_SOLVER_SOLVER_TRAINABLE_H_
 
 #include <vector>
-#include <memory>
-#include <include/json.hpp>
+#include <string>
+#include <memory> // For std::shared_ptr
+#include <map>    // <<< ADD THIS INCLUDE
+#include <json.hpp> // <<< INCLUDE ACTUAL JSON HEADER
 
-namespace PokerSolver {
-
-// Alias for JSON (using nlohmann::json)
+// Use the alias in our namespace for convenience
 using json = nlohmann::json;
 
-// The Trainable interface provides a set of methods that every
-// training module must implement. This allows different training
-// strategies (e.g. CFR-Plus or Discounted CFR) to be interchanged.
+
+namespace poker_solver {
+namespace solver {
+
+// Abstract base class (interface) for storing and updating strategy and
+// regret information at an ActionNode during CFR iterations.
 class Trainable {
-public:
-    // Enumerated type to identify the specific training algorithm.
-    enum class Type {
-        CFR_PLUS,
-        DISCOUNTED_CFR
-    };
+ public:
+  // Virtual destructor is essential for base classes.
+  virtual ~Trainable() = default;
 
-    // Virtual destructor ensures that derived classes are correctly cleaned up.
-    virtual ~Trainable();
+  // Returns the current strategy profile based on positive regrets.
+  virtual const std::vector<float>& GetCurrentStrategy() const = 0;
 
-    // Returns the average strategy as a vector of probabilities.
-    virtual std::vector<float> getAverageStrategy() const = 0;
+  // Returns the average strategy profile accumulated over all iterations.
+  virtual const std::vector<float>& GetAverageStrategy() const = 0;
 
-    // Returns the current (instantaneous) strategy as a vector of probabilities.
-    virtual std::vector<float> getCurrentStrategy() const = 0;
+  // Updates the regrets and strategy sums based on the calculated utilities
+  // for the current iteration.
+  virtual void UpdateRegrets(const std::vector<float>& regrets, int iteration,
+                             const std::vector<float>& reach_probs) = 0;
 
-    // Updates the internal regret values based on the given regrets,
-    // the iteration number, and the reach probabilities.
-    virtual void updateRegrets(const std::vector<float>& regrets,
-                               int iterationNumber,
-                               const std::vector<float>& reachProbs) = 0;
+  // Stores the calculated expected values (EVs) for each action and hand.
+  virtual void SetEv(const std::vector<float>& evs) = 0;
 
-    // Sets the expected values (EVs) for the node or action.
-    virtual void setEv(const std::vector<float>& evs) = 0;
+  // Creates a JSON representation of the strategy profile (usually average strategy).
+  virtual json DumpStrategy(bool with_ev) const = 0;
 
-    // Copies strategy information from another Trainable instance.
-    virtual void copyStrategy(const std::shared_ptr<Trainable>& other) = 0;
+  // Creates a JSON representation of the calculated expected values (EVs).
+  virtual json DumpEvs() const = 0;
 
-    // Dumps the current strategy (and optionally extra state) to JSON.
-    virtual json dumpStrategy(bool withState, int depth) const = 0;
+  // Copies the internal state from another Trainable object.
+  // Takes const reference as we are copying *from* it.
+  virtual void CopyStateFrom(const Trainable& other) = 0; // <<< CORRECTED SIGNATURE
 
-    // Dumps the EVs to JSON.
-    virtual json dumpEvs() const = 0;
+ protected:
+  // Protected default constructor.
+  Trainable() = default;
 
-    // Returns the type of this trainable (e.g. CFR_PLUS or DISCOUNTED_CFR).
-    virtual Type getType() const = 0;
+  // Deleted copy/move operations.
+  Trainable(const Trainable&) = delete;
+  Trainable& operator=(const Trainable&) = delete;
+  Trainable(Trainable&&) = delete;
+  Trainable& operator=(Trainable&&) = delete;
+
 };
 
-} // namespace PokerSolver
+} // namespace solver
+} // namespace poker_solver
 
-#endif // POKERSOLVER_TRAINABLE_H
+#endif // POKER_SOLVER_SOLVER_TRAINABLE_H_

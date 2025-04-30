@@ -1,45 +1,50 @@
-#ifndef POKERSOLVER_GAMEACTIONS_H
-#define POKERSOLVER_GAMEACTIONS_H
+#ifndef POKER_SOLVER_CORE_GAME_ACTIONS_H_
+#define POKER_SOLVER_CORE_GAME_ACTIONS_H_
 
+#include "GameTreeNode.h" // For PokerAction enum (adjust path if needed)
 #include <string>
-#include <sstream>
-#include "GameTreeNode.h" // For the PokerAction enum
+#include <stdexcept> // For exceptions
+#include <sstream>   // For error messages
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace core {
 
-/// @brief Represents a single poker action along with an associated amount.
-/// This class is used within nodes (for example, in ActionNode) to record the actions
-/// available or taken in a game tree.
-class GameActions {
-public:
-    /// @brief Default constructor initializes the action to BEGIN and amount to zero.
-    GameActions();
+// Represents a specific action taken in a poker game (e.g., BET, CHECK, FOLD)
+// along with an associated amount, if applicable.
+class GameAction {
+ public:
+  // Default constructor (creates an invalid BEGIN action).
+  GameAction();
 
-    /// @brief Constructs a GameActions with a specified action and amount.
-    /// @param action The poker action (e.g., BET, CALL, FOLD).
-    /// @param amount The betting amount associated with the action.
-    GameActions(PokerAction action, double amount);
+  // Constructs a game action.
+  // Args:
+  //   action: The type of poker action (e.g., PokerAction::kBet).
+  //   amount: The amount associated with the action (required for BET/RAISE,
+  //           should be -1 or ignored otherwise). Defaults to -1.0.
+  // Throws:
+  //   std::invalid_argument if amount rules are violated (e.g., amount provided
+  //                         for CHECK, or no amount for BET/RAISE).
+  explicit GameAction(PokerAction action, double amount = -1.0);
 
-    /// @brief Returns the poker action.
-    PokerAction action() const;
+  // Returns the type of the action.
+  PokerAction GetAction() const;
 
-    /// @brief Returns the associated amount.
-    double amount() const;
+  // Returns the amount associated with the action.
+  // Returns -1.0 if no amount is applicable (e.g., for CHECK, FOLD, CALL).
+  double GetAmount() const;
 
-    /// @brief Sets the poker action.
-    void setAction(PokerAction action);
+  // Returns a string representation of the action (e.g., "BET 50.0", "CALL").
+  std::string ToString() const;
 
-    /// @brief Sets the associated amount.
-    void setAmount(double amount);
+  // Static helper to convert PokerAction enum to string.
+  static std::string ActionToString(PokerAction action);
 
-    /// @brief Returns a human-readable string representing the action and amount.
-    std::string toString() const;
-
-private:
-    PokerAction action_;
-    double amount_;
+ private:
+  PokerAction action_;
+  double amount_; // Amount associated with BET/RAISE actions. -1 otherwise.
 };
 
-} // namespace PokerSolver
+} // namespace core
+} // namespace poker_solver
 
-#endif // POKERSOLVER_GAMEACTIONS_H
+#endif // POKER_SOLVER_CORE_GAME_ACTIONS_H_

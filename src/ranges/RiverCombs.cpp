@@ -1,38 +1,21 @@
-#include "RiverCombs.h"
+#include "ranges/RiverCombs.h" // Adjust path if necessary
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace ranges {
 
-RiverCombs::RiverCombs()
-    : rank_(0), reachProbIndex_(0)
-{
-    // Default constructor: creates an empty combination.
+// Default constructor implementation.
+// Initializes with default PrivateCards and invalid rank/index.
+RiverCombs::RiverCombs() = default;
+// Note: Relying on default member initializers from the header.
+// If specific default logic was needed, it would go here.
+
+
+// Constructor implementation.
+RiverCombs::RiverCombs(const core::PrivateCards& pc, int r,
+                       size_t original_idx)
+    : private_cards(pc), rank(r), original_range_index(original_idx) {
+  // Initialization done via member initializer list.
 }
 
-RiverCombs::RiverCombs(const std::vector<int>& board,
-                       const PrivateCards &privateCards,
-                       int rank,
-                       int reachProbIndex)
-    : rank_(rank),
-      privateCards_(privateCards),
-      reachProbIndex_(reachProbIndex),
-      board_(board)
-{
-}
-
-int RiverCombs::rank() const {
-    return rank_;
-}
-
-const PrivateCards& RiverCombs::privateCards() const {
-    return privateCards_;
-}
-
-int RiverCombs::reachProbIndex() const {
-    return reachProbIndex_;
-}
-
-const std::vector<int>& RiverCombs::board() const {
-    return board_;
-}
-
-} // namespace PokerSolver
+} // namespace ranges
+} // namespace poker_solver

@@ -1,4 +1,4 @@
-#include "lookup8.h" // Ensure PATH_TO_ is adjusted if needed
+#include "tools/lookup8.h" // Ensure PATH_TO_ is adjusted if needed
 
 #include <cstring> // For memcpy, if needed for aligned reads (safer alternative)
 

@@ -1,49 +1,80 @@
-#ifndef POKERSOLVER_CHANCENODE_H
-#define POKERSOLVER_CHANCENODE_H
+#ifndef POKER_SOLVER_NODES_CHANCE_NODE_H_
+#define POKER_SOLVER_NODES_CHANCE_NODE_H_
 
-#include "GameTreeNode.h"
-#include "Card.h"
+#include "nodes/GameTreeNode.h" // Base class and enums
+#include "Card.h"          // For Card
 #include <vector>
-#include <memory>
+#include <memory> // For std::shared_ptr
+#include <stdexcept> // For exceptions
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace nodes {
 
-class ChanceNode : public GameTreeNode {
-public:
-    // Constructor:
-    // - round: the game round at which the chance event occurs.
-    // - pot: the current pot value.
-    // - parent: the parent node in the game tree.
-    // - cards: the list of cards dealt (e.g. for flop, turn, or river).
-    // - donk: an optional flag indicating a "donk" scenario (default is false).
-    ChanceNode(GameRound round, double pot,
-               std::shared_ptr<GameTreeNode> parent,
-               const std::vector<Card>& cards,
-               bool donk = false);
+// Represents a chance node in the game tree, typically occurring after a
+// betting round concludes and community cards are dealt.
+// This node stores the specific cards dealt at this chance event and points
+// to the single resulting child node.
+class ChanceNode : public core::GameTreeNode {
+ public:
+  // Constructor.
+  // Args:
+  //   round: The game round *after* these cards are dealt (e.g., kFlop if flop cards were dealt).
+  //   pot: The pot size carried over into this node.
+  //   parent: Weak pointer to the parent node (usually an ActionNode).
+  //   dealt_cards: The specific community card(s) dealt at this chance event.
+  //   child_node: The single GameTreeNode that follows this chance event. Can be null initially.
+  //   is_donk_opportunity: Flag indicating if the next action node represents
+  //                        a potential donk bet spot (OOP betting into PFR).
+  ChanceNode(core::GameRound round,
+             double pot,
+             std::weak_ptr<GameTreeNode> parent,
+             std::vector<core::Card> dealt_cards, // Store the dealt cards
+             std::shared_ptr<GameTreeNode> child_node, // Can be null
+             bool is_donk_opportunity = false);
 
-    // Destructor (defaulted).
-    virtual ~ChanceNode() = default;
+  // Virtual destructor.
+  ~ChanceNode() override = default;
 
-    // Accessor for cards involved in the chance event.
-    const std::vector<Card>& cards() const;
+  // --- Overridden Methods ---
+  core::GameTreeNodeType GetNodeType() const override {
+    return core::GameTreeNodeType::kChance;
+  }
 
-    // Accessor and mutator for the child node.
-    std::shared_ptr<GameTreeNode> child() const;
-    void setChild(std::shared_ptr<GameTreeNode> child);
+  // --- Accessors ---
 
-    // Returns whether this chance node is a donk.
-    bool isDonk() const noexcept;
+  // Returns the specific community card(s) dealt at this node.
+  const std::vector<core::Card>& GetDealtCards() const { return dealt_cards_; } // Method exists here
 
-    // --- Override Abstract Interface from GameTreeNode ---
-    NodeType type() const override;
-    std::string nodeTypeToString() const override;
+  // Returns the single child node that follows this chance event.
+  std::shared_ptr<GameTreeNode> GetChild() const { return child_node_; }
 
-private:
-    std::vector<Card> cards_;
-    std::shared_ptr<GameTreeNode> child_;
-    bool donk_;
+  // Returns true if the state following this chance node allows for a donk bet.
+  bool IsDonkOpportunity() const { return is_donk_opportunity_; }
+
+  // --- Modifiers (Used during tree construction/linking) ---
+
+  // Sets the child node (primarily used if constructed with null child initially).
+  void SetChild(std::shared_ptr<GameTreeNode> child);
+
+
+ private:
+  // The specific community card(s) dealt at this chance event.
+  std::vector<core::Card> dealt_cards_;
+
+  // The single child node following this chance event.
+  std::shared_ptr<GameTreeNode> child_node_;
+
+  // Indicates if the next action node (if any) is a donk spot.
+  bool is_donk_opportunity_;
+
+  // Deleted copy/move operations.
+  ChanceNode(const ChanceNode&) = delete;
+  ChanceNode& operator=(const ChanceNode&) = delete;
+  ChanceNode(ChanceNode&&) = delete;
+  ChanceNode& operator=(ChanceNode&&) = delete;
 };
 
-} // namespace PokerSolver
+} // namespace nodes
+} // namespace poker_solver
 
-#endif // POKERSOLVER_CHANCENODE_H
+#endif // POKER_SOLVER_NODES_CHANCE_NODE_H_

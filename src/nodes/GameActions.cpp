@@ -1,66 +1,91 @@
-#include "GameActions.h"
+#include "nodes/GameActions.h" // Adjust path if necessary
 
-namespace PokerSolver {
 
-// -----------------------------------------------------------------------------
-// Constructors
+#include <limits> // For std::numeric_limits (though not used currently)
+#include <sstream> // For std::ostringstream
+#include <stdexcept> // For std::invalid_argument
 
-GameActions::GameActions()
-    : action_(PokerAction::BEGIN), amount_(0.0)
-{
-    // Default constructor sets the action to BEGIN and amount to 0.0.
-}
+namespace poker_solver {
+namespace core {
 
-GameActions::GameActions(PokerAction action, double amount)
-    : action_(action), amount_(amount)
-{
-}
+// Define default amount sentinel value more clearly
+constexpr double kNoAmount = -1.0;
 
-// -----------------------------------------------------------------------------
-// Accessors
+GameAction::GameAction()
+    : action_(PokerAction::kBegin), // Default to an initial state action
+      amount_(kNoAmount) {}
 
-PokerAction GameActions::action() const {
-    return action_;
-}
+GameAction::GameAction(PokerAction action, double amount)
+    : action_(action), amount_(amount) {
+  // Validate amount based on action type
+  bool requires_amount = (action_ == PokerAction::kBet ||
+                          action_ == PokerAction::kRaise);
+  bool has_amount = (amount != kNoAmount); // Check against sentinel
 
-double GameActions::amount() const {
-    return amount_;
-}
-
-// -----------------------------------------------------------------------------
-// Mutators
-
-void GameActions::setAction(PokerAction action) {
-    action_ = action;
-}
-
-void GameActions::setAmount(double amount) {
-    amount_ = amount;
-}
-
-// -----------------------------------------------------------------------------
-// Utility Functions
-
-/// @brief Converts a PokerAction enum value to its string representation.
-static std::string pokerActionToString(PokerAction action) {
-    switch (action) {
-        case PokerAction::BEGIN:      return "BEGIN";
-        case PokerAction::ROUNDBEGIN: return "ROUNDBEGIN";
-        case PokerAction::BET:        return "BET";
-        case PokerAction::RAISE:      return "RAISE";
-        case PokerAction::CHECK:      return "CHECK";
-        case PokerAction::FOLD:       return "FOLD";
-        case PokerAction::CALL:       return "CALL";
-        default:                      return "UNKNOWN";
-    }
-}
-
-/// @brief Returns a string representation of the GameActions instance.
-std::string GameActions::toString() const {
+  if (requires_amount && !has_amount) {
     std::ostringstream oss;
-    oss << "Action: " << pokerActionToString(action_) 
-        << ", Amount: " << amount_;
-    return oss.str();
+    oss << "Action " << ActionToString(action_)
+        << " requires an amount, but none was provided (amount=" << amount
+        << ").";
+    throw std::invalid_argument(oss.str());
+  }
+
+  if (!requires_amount && has_amount) {
+    std::ostringstream oss;
+    oss << "Action " << ActionToString(action_)
+        << " should not have an amount, but amount=" << amount
+        << " was provided.";
+    // Optionally, just ignore the amount instead of throwing:
+    // amount_ = kNoAmount;
+    // Throwing is stricter during development.
+    throw std::invalid_argument(oss.str());
+  }
+
+  // Optional: Check if amount is non-negative for BET/RAISE
+  if (requires_amount && amount < 0) {
+       std::ostringstream oss;
+       oss << "Amount for " << ActionToString(action_)
+           << " cannot be negative: " << amount;
+       throw std::invalid_argument(oss.str());
+  }
 }
 
-} // namespace PokerSolver
+PokerAction GameAction::GetAction() const {
+  return action_;
+}
+
+double GameAction::GetAmount() const {
+  // Return the stored amount; it will be kNoAmount if not applicable.
+  return amount_;
+}
+
+std::string GameAction::ActionToString(PokerAction action) {
+  switch (action) {
+    case PokerAction::kBegin:      return "BEGIN";
+    case PokerAction::kRoundBegin: return "ROUND_BEGIN"; // Use underscore style
+    case PokerAction::kBet:        return "BET";
+    case PokerAction::kRaise:      return "RAISE";
+    case PokerAction::kCheck:      return "CHECK";
+    case PokerAction::kFold:       return "FOLD";
+    case PokerAction::kCall:       return "CALL";
+    default:
+      // Handle potential unknown enum values gracefully
+      return "UNKNOWN_ACTION";
+  }
+}
+
+std::string GameAction::ToString() const {
+  std::string action_str = ActionToString(action_);
+  if (amount_ != kNoAmount) {
+    // Append amount for actions that have one
+    std::ostringstream oss;
+    // Use default precision for double-to-string conversion
+    oss << action_str << " " << amount_;
+    return oss.str();
+  } else {
+    return action_str;
+  }
+}
+
+} // namespace core
+} // namespace poker_solver

@@ -1,99 +1,105 @@
-#ifndef POKERSOLVER_GAMETREENODE_H
-#define POKERSOLVER_GAMETREENODE_H
+#ifndef POKER_SOLVER_CORE_GAME_TREE_NODE_H_
+#define POKER_SOLVER_CORE_GAME_TREE_NODE_H_
 
-#include <memory>
+#include <cstdint>
+#include <memory> // For std::shared_ptr, std::weak_ptr, std::enable_shared_from_this
 #include <string>
+#include <vector>
+#include <stdexcept> // For std::runtime_error, std::out_of_range
+#include <sstream>   // For ostringstream
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace core {
 
-// -----------------------------------------------------------------------------
-// Enumerations for actions, node types, and game rounds
+// Enum representing the different betting rounds in Hold'em.
+enum class GameRound { kPreflop = 0, kFlop = 1, kTurn = 2, kRiver = 3 };
 
+// Enum representing the possible types of nodes in the game tree.
+enum class GameTreeNodeType { kAction, kChance, kShowdown, kTerminal };
+
+// Enum representing the possible actions a player can take, plus game states.
 enum class PokerAction {
-    BEGIN,
-    ROUNDBEGIN,
-    BET,
-    RAISE,
-    CHECK,
-    FOLD,
-    CALL
+  kBegin,      // Represents the absolute start of the game/tree
+  kRoundBegin, // Represents the start of a betting round
+  kBet,
+  kRaise,
+  kCheck,
+  kFold,
+  kCall
 };
 
-enum class NodeType {
-    Action,
-    Chance,
-    Terminal,
-    Showdown
+
+// Abstract base class for all nodes in the poker game tree.
+// Inherits from enable_shared_from_this to allow nodes to safely create
+// shared_ptrs to themselves (useful for setting parent pointers).
+class GameTreeNode : public std::enable_shared_from_this<GameTreeNode> {
+ public:
+  // Virtual destructor is crucial for base classes with virtual functions.
+  virtual ~GameTreeNode() = default;
+
+  // --- Accessors ---
+
+  // Returns the type of this specific node. Must be implemented by subclasses.
+  virtual GameTreeNodeType GetNodeType() const = 0;
+
+  // Returns the betting round this node belongs to.
+  GameRound GetRound() const { return round_; }
+
+  // Returns the total pot size at this node.
+  double GetPot() const { return pot_; }
+
+  // Returns a shared pointer to the parent node (may be expired/null if root).
+  std::shared_ptr<GameTreeNode> GetParent() const { return parent_.lock(); }
+
+  // Sets the parent node (used during tree construction).
+  // Takes a shared_ptr but stores it as a weak_ptr.
+  void SetParent(std::shared_ptr<GameTreeNode> parent);
+
+  // Returns the depth of the node in the tree (root is 0). Set during tree analysis.
+  int GetDepth() const { return depth_; }
+  void SetDepth(int depth) { depth_ = depth; }
+
+  // Returns the total number of nodes in the subtree rooted at this node. Set during tree analysis.
+  int GetSubtreeSize() const { return subtree_size_; }
+  void SetSubtreeSize(int size) { subtree_size_ = size; }
+
+  // --- Static Helpers ---
+
+  // Converts an integer (0-3) to a GameRound enum.
+  // Throws std::out_of_range if the integer is invalid.
+  static GameRound IntToGameRound(int round_int);
+
+  // Converts a GameRound enum to its integer representation (0-3).
+  static int GameRoundToInt(GameRound game_round);
+
+  // Converts a GameRound enum to its string representation.
+  static std::string GameRoundToString(GameRound game_round);
+
+ protected:
+  // Constructor for subclasses.
+  // Args:
+  //   round: The betting round.
+  //   pot: The pot size at this node.
+  //   parent: A weak_ptr to the parent node (to avoid circular references).
+  //           Typically created from a shared_ptr using std::weak_ptr<GameTreeNode>(shared_parent).
+  GameTreeNode(GameRound round, double pot,
+               std::weak_ptr<GameTreeNode> parent);
+
+  // Default constructor (protected to prevent direct instantiation).
+  GameTreeNode() = default;
+
+ private:
+  // --- Member Variables ---
+  GameRound round_ = GameRound::kPreflop; // Default to preflop
+  double pot_ = 0.0;
+  std::weak_ptr<GameTreeNode> parent_; // Use weak_ptr to break cycles
+
+  // Metadata often calculated after tree construction
+  int depth_ = -1;        // Depth in the tree (root = 0)
+  int subtree_size_ = 0; // Number of nodes in the subtree rooted here
 };
 
-enum class GameRound {
-    Preflop,
-    Flop,
-    Turn,
-    River
-};
+} // namespace core
+} // namespace poker_solver
 
-// -----------------------------------------------------------------------------
-// Abstract base class for a game-tree node
-//
-// This class encapsulates the common attributes of all nodes (the game round,
-// the pot value, the parent pointer, and the node depth) and provides some
-// utility methods for debugging and tracing the node history. Derived classes
-// must override the pure virtual functions to report their own node type and
-// provide node–specific behavior.
-//
-class GameTreeNode {
-public:
-    // Constructors
-    GameTreeNode();
-    GameTreeNode(GameRound round, double pot, std::shared_ptr<GameTreeNode> parent = nullptr);
-
-    // Virtual destructor
-    virtual ~GameTreeNode();
-
-    // --- Pure Virtual Interface ---
-    // Returns the type of this node. Each derived class must implement this.
-    virtual NodeType type() const = 0;
-
-    // Returns a human–readable string for this node’s type.
-    virtual std::string nodeTypeToString() const = 0;
-
-    // --- Accessors ---
-    GameRound round() const;
-    double pot() const;
-    std::shared_ptr<GameTreeNode> parent() const;
-    int depth() const;
-
-    // --- Mutators ---
-    void setParent(std::shared_ptr<GameTreeNode> parent);
-    void setPot(double pot);
-    void setRound(GameRound round);
-
-    // --- Utility Methods ---
-    // Returns a one–line string representation of the node.
-    std::string toString() const;
-
-    // Returns a string containing the history from the root to this node.
-    std::string printHistory() const;
-
-    // --- Static Helper Functions ---
-    // Converts a GameRound enum value to a string.
-    static std::string gameRoundToString(GameRound round);
-
-protected:
-    GameRound round_{ GameRound::Preflop };
-    double pot_{ 0.0 };
-
-private:
-    // Parent pointer stored as a weak pointer to avoid cyclic references.
-    std::weak_ptr<GameTreeNode> parent_;
-    int depth_{ 0 };
-
-    // Disable copy construction and assignment.
-    GameTreeNode(const GameTreeNode&) = delete;
-    GameTreeNode& operator=(const GameTreeNode&) = delete;
-};
-
-} // namespace PokerSolver
-
-#endif // POKERSOLVER_GAMETREENODE_H
+#endif // POKER_SOLVER_CORE_GAME_TREE_NODE_H_

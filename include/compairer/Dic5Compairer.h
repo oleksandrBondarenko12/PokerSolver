@@ -1,66 +1,82 @@
-#ifndef POKERSOLVER_DIC5COMPRAIRER_H
-#define POKERSOLVER_DIC5COMPRAIRER_H
+#ifndef POKER_SOLVER_EVAL_DIC5_COMPAIRER_H_
+#define POKER_SOLVER_EVAL_DIC5_COMPAIRER_H_
 
+#include "compairer/Compairer.h" // Base class interface
+#include "Card.h"      // For Card utilities
+#include "Library.h"  // For Combinations
 #include <string>
 #include <vector>
+#include <cstdint>
 #include <unordered_map>
-#include "Compairer.h"     // Abstract interface
-#include "Card.h"          // Our Card definition
+#include <filesystem> // Required for path manipulation (C++17)
 
-namespace PokerSolver {
+namespace poker_solver {
+namespace eval {
 
-/**
- * @brief A concrete Compairer using a 5-card dictionary lookup for 7-card evaluation.
- */
-class Dic5Compairer : public Compairer {
-public: // <-- Made public section explicit
-    /**
-     * @brief Construct a new Dic5Compairer object.
-     * @param resourceFilePath The path to the 5-card rank resource file.
-     */
-    explicit Dic5Compairer(const std::string& resourceFilePath = "resources/compairer/five_card_strength.txt");
+// Concrete implementation of Compairer using a pre-computed dictionary
+// of 5-card hand ranks loaded from a file (with binary caching).
+class Dic5Compairer : public core::Compairer {
+ public:
+  // --- Constants ---
+  static constexpr int kInvalidRank = 999999;
 
-    /// Default virtual destructor.
-    virtual ~Dic5Compairer() override = default;
+  // --- Static Bitmask Helpers ---
+  static uint64_t RanksHash(uint64_t cards_mask);
+  static bool IsFlush(uint64_t cards_mask);
 
-    // --- Implementations of Compairer pure virtual functions ---
+  // --- Constructor ---
+  // Loads the 5-card hand rank dictionary. Tries loading from a binary cache
+  // first (derived from dictionary_filepath, e.g., .bin), falls back to
+  // parsing the text file and creating the cache if necessary.
+  // Args:
+  //   dictionary_filepath: Path to the *text* file containing 5-card hand ranks
+  //                        (e.g., "five_card_strength.txt").
+  // Throws:
+  //   std::runtime_error if the dictionary cannot be loaded from either cache
+  //                      or text file, or if cache creation fails.
+  explicit Dic5Compairer(const std::string& dictionary_filepath);
 
-    /**
-     * @brief Evaluates and returns the rank for a 7-card hand (2 private + 5 board).
-     */
-    int getRank(const std::vector<Card>& privateHand,
-                const std::vector<Card>& board) const override; // CORRECT override
+  // --- Overridden Interface Methods ---
+  core::ComparisonResult CompareHands(
+      const std::vector<int>& private_hand1,
+      const std::vector<int>& private_hand2,
+      const std::vector<int>& public_board) const override;
 
-    /**
-     * @brief Compares two 7-card hands (private1+board vs private2+board).
-     */
-    ComparisonResult compare(const std::vector<Card>& privateHand1,
-                             const std::vector<Card>& privateHand2,
-                             const std::vector<Card>& board) const override; // CORRECT override
+  core::ComparisonResult CompareHands(uint64_t private_mask1,
+                                        uint64_t private_mask2,
+                                        uint64_t public_mask) const override;
 
-    // --- Optional: Direct 5-card rank lookup (Moved to Public) ---
-    // Useful for internal checks or if you ever need to rank exactly 5 cards.
-    // Note: No 'override' keyword here as it doesn't override the base interface method.
-    int getRank(const std::vector<Card>& hand) const; // MOVED TO PUBLIC
+  int GetHandRank(const std::vector<int>& private_hand,
+                  const std::vector<int>& public_board) const override;
 
-private:
-    // --- Helper Methods and Data ---
+  int GetHandRank(uint64_t private_mask,
+                  uint64_t public_mask) const override;
 
-    // The lookup table maps a unique 64-bit key (from 5 cards) to the hand's ordinal rank.
-    std::unordered_map<uint64_t, int> lookupTable_;
+  // --- Helper Methods (Public for testing) ---
+  int GetBestRankForCards(const std::vector<int>& cards) const;
 
-    /// Helper function to load the resource file into lookupTable_.
-    void loadResourceFile(const std::string& resourceFilePath);
 
-    /**
-     * @brief Computes the lookup key for a given sorted 5-card hand.
-     * @param sortedHand A vector of 5 cards (must be sorted).
-     * @return uint64_t The computed key.
-     */
-    uint64_t computeHandKey(const std::vector<Card>& sortedHand) const;
+ private:
+   // --- Private Helper Methods ---
+   // Loads ranks from the text dictionary file.
+   void LoadDictionaryFromText(const std::string& filepath);
+   // Loads ranks from the binary cache file. Returns true on success.
+   bool LoadBinaryCache(const std::filesystem::path& cache_filepath);
+   // Saves the loaded ranks to the binary cache file. Returns true on success.
+   bool SaveBinaryCache(const std::filesystem::path& cache_filepath) const;
+   // Performs the lookup for a specific 5-card hand mask.
+   int Lookup5CardRank(uint64_t hand_mask) const;
 
-}; // End class Dic5Compairer
+   // --- Member Variables ---
+   std::unordered_map<uint64_t, int> flush_ranks_;
+   std::unordered_map<uint64_t, int> non_flush_ranks_;
+   // Store the path for potential error messages or future use
+   std::filesystem::path dictionary_path_;
+   std::filesystem::path cache_path_;
 
-} // namespace PokerSolver
+};
 
-#endif // POKERSOLVER_DIC5COMPRAIRER_H
+} // namespace eval
+} // namespace poker_solver
+
+#endif // POKER_SOLVER_EVAL_DIC5_COMPAIRER_H_
