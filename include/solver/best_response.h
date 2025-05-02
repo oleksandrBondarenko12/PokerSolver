@@ -1,142 +1,170 @@
+///////////////////////////////////////////////////////////////////////////////
+// include/solver/best_response.h (Corrected)
+///////////////////////////////////////////////////////////////////////////////
 #ifndef POKER_SOLVER_SOLVER_BEST_RESPONSE_H_
 #define POKER_SOLVER_SOLVER_BEST_RESPONSE_H_
 
-#include "Deck.h"
-#include "nodes/GameTreeNode.h"
+#include "nodes/ActionNode.h"        // Includes GameTreeNode, GameRound, PokerAction
 #include "ranges/PrivateCards.h"
-#include "ranges/PrivateCardsManager.h"
-#include "ranges/RiverRangeManager.h"
-#include "tools/utils.h" // For ExchangeColorIsomorphism
-#include "nodes/ActionNode.h"
+#include "compairer/Compairer.h"         // For ComparisonResult
+#include "Card.h"                  // For kNumSuits, kNumCardsInDeck (use constants)
+
 #include <vector>
 #include <cstdint>
-#include <memory> // For std::shared_ptr
-#include <string> // For exception messages
+#include <memory>                   // For std::shared_ptr
+#include <string>                   // For exception messages
+#include <array>                    // For suit isomorphism offset storage
+#include <stdexcept>                // Added for exception types potentially used
 
-// Forward declare node types (ActionNode already included)
-namespace poker_solver { namespace nodes {
-    // class ActionNode; // Included above now
-    class ChanceNode;
-    class ShowdownNode;
-    class TerminalNode;
-}} // namespace poker_solver::nodes
+// Forward declarations
+namespace poker_solver { namespace core { class Deck; }}
+namespace poker_solver { namespace nodes { class ChanceNode; class ShowdownNode; class TerminalNode; }}
+namespace poker_solver { namespace ranges { class PrivateCardsManager; class RiverRangeManager; }}
 
 namespace poker_solver {
 namespace solver {
 
+// *** MOVED CONFIG STRUCT OUTSIDE AND BEFORE BestResponse ***
+// Configuration struct for BestResponse behavior
+struct BestResponseConfig { // Renamed slightly for clarity (optional)
+  bool use_suit_isomorphism = true;
+  // Use fully qualified name for nested enum
+  nodes::ActionNode::TrainablePrecision precision = nodes::ActionNode::TrainablePrecision::kFloat;
+  int num_threads = 1;
+  bool debug_log = false;
+  // Round at which to potentially parallelize chance node calculations
+  core::GameRound parallel_split_round = core::GameRound::kFlop;
+};
+
+
 // Calculates the best response strategy and exploitability against a fixed strategy
 // profile stored within a game tree. Designed to be thread-safe for calculations
-// if configured with multiple threads.
+// if configured with multiple threads (using OpenMP in the implementation).
 class BestResponse {
  public:
-  // Configuration struct for BestResponse behavior
-  struct Config {
-      bool use_suit_isomorphism = true;
-      // Use fully qualified name as ActionNode.h is included after this point potentially
-      nodes::ActionNode::TrainablePrecision precision = nodes::ActionNode::TrainablePrecision::kFloat;
-      int num_threads = 1;
-      bool debug_log = false;
-      // Round at which to potentially parallelize chance node calculations
-      core::GameRound parallel_split_round = core::GameRound::kFlop;
-  };
+  // Use the Config struct defined outside
+  using Config = BestResponseConfig; // Optional: create an alias inside if preferred
 
+  // Constructor - now simpler, only takes configuration.
+  // Default argument uses the externally defined Config struct.
+  explicit BestResponse(const Config& config = Config{});
 
-  // Constructor.
-  // Args:
-  //   player_ranges: Const reference to the vector containing the initial PrivateCards
-  //                  range for each player (e.g., index 0 for P0, 1 for P1).
-  //                  These ranges should NOT be filtered by board yet.
-  //   pcm: Const reference to the PrivateCardsManager holding range info and lookups.
-  //   rrm: Const reference to the RiverRangeManager for cached river evaluations.
-  //   deck: Const reference to the Deck object.
-  //   config: Configuration settings for the best response calculation.
-// Inside class BestResponse { public: ...
-  BestResponse(
+  // Default destructor is sufficient.
+  ~BestResponse() = default;
+
+  // Calculates the overall exploitability (average EV gain for both players playing BR).
+  // Dependencies are passed in. Marked const.
+  double CalculateExploitability(
+      const std::shared_ptr<core::GameTreeNode>& root_node,
+      const std::vector<std::vector<core::PrivateCards>>& player_ranges,
+      const ranges::PrivateCardsManager& pcm,
+      ranges::RiverRangeManager& rrm, // RRM might be modified (cache)
+      const core::Deck& deck,
+      uint64_t initial_board_mask,
+      double initial_pot) const;
+
+  // Calculates the expected value (EV) for a specific player playing a best
+  // response strategy against the fixed strategy in the tree.
+  // Dependencies are passed in. Marked const.
+  double CalculateBestResponseEv(
+      const std::shared_ptr<core::GameTreeNode>& root_node,
+      size_t best_response_player_index,
+      const std::vector<std::vector<core::PrivateCards>>& player_ranges,
+      const ranges::PrivateCardsManager& pcm,
+      ranges::RiverRangeManager& rrm, // RRM might be modified (cache)
+      const core::Deck& deck,
+      uint64_t initial_board_mask) const;
+
+ private:
+  // Recursive function to calculate node values (per hand) for the best responder.
+  // Takes output vector by reference. Passes dependencies down. Marked const.
+  void CalculateNodeValue(
+      const std::shared_ptr<core::GameTreeNode>& node,
+      size_t best_response_player_index,
+      const std::vector<std::vector<double>>& reach_probs,
+      uint64_t current_board_mask,
+      size_t deal_abstraction_index,
+      // Dependencies needed by helpers:
       const std::vector<std::vector<core::PrivateCards>>& player_ranges,
       const ranges::PrivateCardsManager& pcm,
       ranges::RiverRangeManager& rrm,
       const core::Deck& deck,
-      // *** Ensure this line uses Config{} ***
-      const Config& config); // Default config
+      // Output parameter:
+      std::vector<double>& out_evs) const;
 
-  // Calculates the exploitability of the strategy stored in the tree.
-  double CalculateExploitability(
-        std::shared_ptr<core::GameTreeNode> root_node,
-        uint64_t initial_board_mask,
-        double initial_pot) const;
-
-
-  // Calculates the expected value (EV) for a specific player playing a best
-  // response strategy against the fixed strategy in the tree.
-  double CalculateBestResponseEv(
-      std::shared_ptr<core::GameTreeNode> root_node,
-      size_t best_response_player_index,
-      uint64_t initial_board_mask) const;
-
-
- private:
-  // Recursive function to calculate node values for the best responder.
-  std::vector<double> CalculateNodeValue(
-      std::shared_ptr<core::GameTreeNode> node,
+  // Specific handlers for different node types. Take output vector by reference. Marked const.
+  void HandleActionNode(
+      const std::shared_ptr<nodes::ActionNode>& node,
       size_t best_response_player_index,
       const std::vector<std::vector<double>>& reach_probs,
       uint64_t current_board_mask,
-      size_t deal_abstraction_index) const;
+      size_t deal_abstraction_index,
+      const std::vector<std::vector<core::PrivateCards>>& player_ranges,
+      const ranges::PrivateCardsManager& pcm,
+      ranges::RiverRangeManager& rrm,
+      const core::Deck& deck,
+      std::vector<double>& out_evs) const;
 
-  // Specific handlers for different node types.
-  std::vector<double> HandleActionNode(
-      std::shared_ptr<nodes::ActionNode> node,
-      size_t best_response_player_index,
-      const std::vector<std::vector<double>>& reach_probs,
-      uint64_t current_board_mask,
-      size_t deal_abstraction_index) const;
-
-  std::vector<double> HandleChanceNode(
-       std::shared_ptr<nodes::ChanceNode> node,
+  void HandleChanceNode(
+       const std::shared_ptr<nodes::ChanceNode>& node,
        size_t best_response_player_index,
        const std::vector<std::vector<double>>& reach_probs,
        uint64_t current_board_mask,
-       size_t deal_abstraction_index) const;
+       size_t deal_abstraction_index,
+       const std::vector<std::vector<core::PrivateCards>>& player_ranges,
+       const ranges::PrivateCardsManager& pcm,
+       ranges::RiverRangeManager& rrm,
+       const core::Deck& deck,
+       std::vector<double>& out_evs) const;
 
-  std::vector<double> HandleTerminalNode(
-       std::shared_ptr<nodes::TerminalNode> node,
+  void HandleTerminalNode(
+       const std::shared_ptr<nodes::TerminalNode>& node,
+       size_t best_response_player_index,
+       // Unused parameters marked maybe_unused if compiler supports C++17
+       [[maybe_unused]] const std::vector<std::vector<double>>& reach_probs,
+       [[maybe_unused]] uint64_t current_board_mask,
+       std::vector<double>& out_evs) const; // Output parameter
+
+  void HandleShowdownNode(
+       const std::shared_ptr<nodes::ShowdownNode>& node,
        size_t best_response_player_index,
        const std::vector<std::vector<double>>& reach_probs,
-       uint64_t current_board_mask) const;
+       uint64_t current_board_mask,
+       // Dependencies needed for RRM call:
+       const std::vector<std::vector<core::PrivateCards>>& player_ranges,
+       ranges::RiverRangeManager& rrm,
+       std::vector<double>& out_evs) const; // Output parameter
 
-  std::vector<double> HandleShowdownNode(
-       std::shared_ptr<nodes::ShowdownNode> node,
-       size_t best_response_player_index,
-       const std::vector<std::vector<double>>& reach_probs,
-       uint64_t current_board_mask) const;
 
-   // Helper to get initial reach probabilities considering board/opponent ranges.
-   std::vector<std::vector<double>> GetInitialReachProbs(
-        uint64_t initial_board_mask) const;
+  // Helper to calculate the number of possible deals for a chance node. Marked const.
+  int CalculatePossibleDeals(uint64_t current_board_mask, const core::Deck& deck) const;
 
-   // Helper to calculate the number of possible deals for a chance node.
-   int CalculatePossibleDeals(uint64_t current_board_mask) const;
+  // Helper to get the next deal abstraction index (used for isomorphism). Marked const.
+  // Placeholder implementation.
+  size_t GetNextDealAbstractionIndex(size_t current_deal_index, int card_index) const;
 
-   // Helper to get the next deal abstraction index (used for isomorphism).
-   size_t GetNextDealAbstractionIndex(size_t current_deal_index, int card_index) const;
-
-   // Helper to get all isomorphic deal indices for a given abstract index.
-   std::vector<size_t> GetIsomorphicDealIndices(size_t deal_abstraction_index) const;
-
-   // Precompute suit isomorphism mappings if enabled.
-   void InitializeIsomorphism();
-
+  // Precompute suit isomorphism mappings if enabled.
+  // Placeholder implementation.
+  void InitializeIsomorphism();
 
   // --- Member Variables ---
-  const std::vector<std::vector<core::PrivateCards>>& player_ranges_;
-  const ranges::PrivateCardsManager& pcm_;
-  ranges::RiverRangeManager& rrm_;
-  const core::Deck& deck_;
-  Config config_;
+  Config config_; // Store configuration (uses the struct defined outside)
 
-  static constexpr size_t kMaxDealAbstractionIndex = 3000;
-  int suit_iso_offset_[kMaxDealAbstractionIndex][core::kNumSuits];
-  std::vector<size_t> player_hand_counts_;
+  // Store range sizes temporarily during calculation (set in public methods)
+  // Marked mutable to allow modification in const public methods.
+  mutable std::vector<size_t> player_hand_counts_;
+
+  // Use std::vector<std::array> for isomorphism offsets. Correct size needed.
+  // Determine max index based on how deal_abstraction_index is calculated.
+  // Using 52*52 for now, assuming max 2 cards dealt abstractly? Needs clarification.
+  static constexpr size_t kMaxIsoIndex = core::kNumCardsInDeck * core::kNumCardsInDeck; // Adjust if needed
+  std::vector<std::array<int, core::kNumSuits>> suit_iso_offset_;
+
+  // Deleted copy/move operations. BestResponse is configured once and used.
+  BestResponse(const BestResponse&) = delete;
+  BestResponse& operator=(const BestResponse&) = delete;
+  BestResponse(BestResponse&&) = delete;
+  BestResponse& operator=(BestResponse&&) = delete;
 };
 
 } // namespace solver

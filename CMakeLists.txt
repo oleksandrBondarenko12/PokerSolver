@@ -8,6 +8,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) # Error if C++17 is not supported
 set(CMAKE_CXX_EXTENSIONS OFF) # Prefer standard features over extensions
 # ------------------------
 
+# --- Add AddressSanitizer Flags for Debug Builds ---
+# Check if build type is Debug (or default/empty which often implies debug flags)
+if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "Debug")
+  message(STATUS "Enabling AddressSanitizer for Debug build.")
+  # Add flags for compiler
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
+  # Add flags for linker (cover executable, shared, module libraries)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address")
+else()
+   message(STATUS "AddressSanitizer disabled for ${CMAKE_BUILD_TYPE} build.")
+   # Optionally add optimization flags for Release builds
+   # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+endif()
+# --------------------------------------------------
+
 
 find_package(Threads REQUIRED)
 find_package(OpenMP)
@@ -16,16 +33,16 @@ find_package(OpenMP)
 add_library(PokerSolverCore
     # Add ALL your core source files here
     # IMPORTANT: Verify these paths match your project structure exactly!
-    src/Card.cpp           # Example path
-    src/Deck.cpp           # Example path
-    src/ranges/PrivateCards.cpp  # Example path
-    src/tools/StreetSetting.cpp # Example path
-    src/Library.cpp         # Example path
+    src/Card.cpp
+    src/Deck.cpp
+    src/ranges/PrivateCards.cpp
+    src/tools/StreetSetting.cpp
+    src/Library.cpp
     src/tools/lookup8.cpp
     src/compairer/Dic5Compairer.cpp
-    src/ranges/RiverCombs.cpp # <<< --- ADD THIS LINE (Verify path!)
-    src/tools/PrivateRangeConverter.cpp # <<< ADD THIS LINE
-    src/ranges/RiverRangeManager.cpp # <<< --- ADD THIS LINE (Verify path!)
+    src/ranges/RiverCombs.cpp
+    src/tools/PrivateRangeConverter.cpp
+    src/ranges/RiverRangeManager.cpp
     src/tools/GameTreeBuildingSettings.cpp
     src/tools/Rule.cpp
     src/ranges/PrivateCardsManager.cpp
@@ -36,71 +53,30 @@ add_library(PokerSolverCore
     src/nodes/ShowdownNode.cpp
     src/nodes/TerminalNode.cpp
     src/trainable/DiscountedCfrTrainable.cpp
+    # src/trainable/CFRPlus.cpp # Add if used
+    # src/trainable/Trainable.cpp # Likely header-only or part of others
     src/GameTree.cpp
     src/solver/Solver.cpp
     src/solver/best_response.cpp
-    
-    # Example path
-    # ... add other .cpp files for your core logic as you create them ...
+    # src/builder/GameTreeBuilder.cpp # Add if used
+    # src/utils.cpp # Add if you have utils.cpp
 )
 
 # Specify include directories for the PokerSolverCore library
 # PUBLIC means these includes are also available to targets linking PokerSolverCore
 target_include_directories(PokerSolverCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include # Adjust path if your include dir is elsewhere
+    # Add path to nlohmann/json if it's not directly in include/
+    # Example: ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nlohmann
 )
 
 # --- Link OpenMP if found ---
-# Disable OpenMP for Apple Clang/macOS by default
-# You can re-enable this block if you install OpenMP and configure Clang properly.
-# if(OpenMP_CXX_FOUND)
-#     target_link_libraries(PokerSolverCore PUBLIC OpenMP::OpenMP_CXX)
-#     message(STATUS "OpenMP found and enabled via CMake module.")
-# else()
-#    find_library(OpenMP_LIBRARY NAMES omp libomp libgomp HINTS /opt/homebrew/opt/libomp/lib)
-#    if(OpenMP_LIBRARY)
-#        target_link_libraries(PokerSolverCore PUBLIC ${OpenMP_LIBRARY})
-#        target_compile_options(PokerSolverCore PUBLIC -Xpreprocessor -fopenmp)
-#        target_link_options(PokerSolverCore PUBLIC -fopenmp)
-#        message(STATUS "OpenMP found manually at ${OpenMP_LIBRARY}")
-#    else()
-#        message(WARNING "OpenMP not found. Parallelism will be disabled.")
-#    endif()
-# endif()
-
-# --- Link OpenMP if found ---
-# if(OpenMP_CXX_FOUND)
-#     target_link_libraries(PokerSolverCore PUBLIC OpenMP::OpenMP_CXX)
-#     message(STATUS "OpenMP found and enabled via CMake module.")
-# else()
-#     find_library(OpenMP_LIBRARY NAMES omp libomp libgomp HINTS /opt/homebrew/opt/libomp/lib)
-#     find_path(OpenMP_INCLUDE_DIR NAMES omp.h HINTS /opt/homebrew/opt/libomp/include)
-#     if(OpenMP_LIBRARY AND OpenMP_INCLUDE_DIR)
-#         target_link_libraries(PokerSolverCore PUBLIC ${OpenMP_LIBRARY})
-#         target_include_directories(PokerSolverCore PUBLIC ${OpenMP_INCLUDE_DIR})
-#         target_compile_options(PokerSolverCore PUBLIC -Xpreprocessor -fopenmp)
-#         target_link_options(PokerSolverCore PUBLIC -fopenmp)
-#         message(STATUS "OpenMP found manually at ${OpenMP_LIBRARY} and ${OpenMP_INCLUDE_DIR}")
-#     else()
-#         message(WARNING "OpenMP not found (Library: ${OpenMP_LIBRARY}, Include: ${OpenMP_INCLUDE_DIR}). Parallelism will be disabled.")
-#     endif()
-# endif()
-
-# --- Add your main application executable target here (if you have one) ---
-# Example:
-# add_executable(MyPokerApp src/main.cpp)
-# target_link_libraries(MyPokerApp PRIVATE PokerSolverCore)
+# (Your existing OpenMP logic - keep as is or adjust as needed)
 # ---
 
 # --- Google Test Integration ---
-# Prevent gtest from installing itself globally with your project install
 set(INSTALL_GTEST OFF CACHE BOOL "Disable installing gtest")
-
-# Add the googletest directory (adjust path if needed)
-# This assumes googletest is in third_party/googletest relative to this CMakeLists.txt
-add_subdirectory(third_party/googletest)
-
-# Enable CMake testing support
+add_subdirectory(third_party/googletest) # Make sure this path is correct
 enable_testing()
 
 # --- Define Your Test Executable ---
@@ -111,46 +87,32 @@ add_executable(poker_solver_tests
     tests/private_cards_test.cpp
     tests/dic5_compairer_test.cpp
     tests/river_range_manager_test.cpp
-    tests/private_range_converter_test.cpp # <<< ADD THIS LINE
-    tests/game_tree_building_settings_test.cpp # <<< ADD THIS LINE
+    tests/private_range_converter_test.cpp
+    tests/game_tree_building_settings_test.cpp
     tests/rule_test.cpp
     tests/private_card_manager_test.cpp
-    tests/utils_test.cpp # <<< ADD THIS LINE
+    tests/utils_test.cpp
     tests/action_node_test.cpp
-    tests/chance_node_test.cpp # <<< ADD THIS LINE
+    tests/chance_node_test.cpp
     tests/showdown_node_test.cpp
     tests/terminal_node_test.cpp
     tests/discounted_cfr_trainable_test.cpp
-    tests/game_tree_test.cpp # <<< ADD THIS LINE
-    tests/best_response_test.cpp # <<< ADD THIS LINE
-
-
-    # <<< ADD THIS LINE
-
+    tests/game_tree_test.cpp
+    tests/best_response_test.cpp
     # Add other test files here...
 )
 
-# Include directories for tests are usually inherited from linked libraries.
-# If tests need specific additional include paths, add them here:
-# target_include_directories(poker_solver_tests PRIVATE
-#     # Example: ${CMAKE_CURRENT_SOURCE_DIR}/tests/include
-# )
-
 # Link your tests against Google Test AND your core library
 target_link_libraries(poker_solver_tests PRIVATE
-    gtest_main       # Google Test library + main()
-    PokerSolverCore  # <<< --- ADDED THIS LINK! ---
+    gtest_main
+    PokerSolverCore
+    # Sanitizer flags are handled globally now
 )
 
-
 # --- Copy Test Data ---
-# Define the path to the dictionary file relative to the source directory
-set(TEST_DICT_SOURCE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/test_data/five_card_strength.txt)
-# Define the destination path within the build directory (where the executable runs)
+# (Keep your existing copy logic)
+set(TEST_DICT_SOURCE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/test_data/five_card_strength.txt) # Ensure this path is correct
 set(TEST_DICT_DEST_PATH ${CMAKE_CURRENT_BINARY_DIR}/five_card_strength.txt)
-
-# Add a custom command to copy the file *after* the test executable is built
-# This ensures the file is available when the test runs.
 add_custom_command(
     TARGET poker_solver_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -160,6 +122,5 @@ add_custom_command(
 )
 # ----------------------
 
-# Automatically discover tests in your executable (CMake 3.10+)
 include(GoogleTest)
 gtest_discover_tests(poker_solver_tests)
