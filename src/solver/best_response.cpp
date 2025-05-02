@@ -281,21 +281,14 @@ void BestResponse::CalculateNodeValue(
     if (out_evs.size() != player_hand_counts_[best_response_player_index]) {
         out_evs.resize(player_hand_counts_[best_response_player_index]);
     }
-    // Initialize output vector for this node (important for aggregation/max)
-    // Initialization moved inside specific handlers where needed (e.g., ActionNode max)
-    // std::fill(out_evs.begin(), out_evs.end(), 0.0);
 
-
-    // Debug logging (optional, kept for clarity)
     if (config_.debug_log) {
         std::cout << "[DEBUG BR Enter] Node Type: " << static_cast<int>(node->GetNodeType())
                   << ", BR Player: " << best_response_player_index
                   << ", Board: 0x" << std::hex << current_board_mask << std::dec
                   << ", Node Ptr: " << node.get() << std::endl;
-        // *** ADDED: Log node type explicitly before switch ***
         std::cout << "[DEBUG BR CalculateNodeValue] Processing Node Type (Before Switch): "
                   << static_cast<int>(node->GetNodeType()) << std::endl << std::flush;
-        // *****************************************************
     }
 
 
@@ -303,29 +296,30 @@ void BestResponse::CalculateNodeValue(
         switch (node->GetNodeType()) {
             case core::GameTreeNodeType::kAction:
                 HandleActionNode(
-                    std::dynamic_pointer_cast<nodes::ActionNode>(node), // Cast needed
+                    std::dynamic_pointer_cast<nodes::ActionNode>(node),
                     best_response_player_index, reach_probs, current_board_mask,
-                    deal_abstraction_index, player_ranges, pcm, rrm, deck, out_evs); // Pass dependencies + out_evs
+                    deal_abstraction_index, player_ranges, pcm, rrm, deck, out_evs);
                 break;
             case core::GameTreeNodeType::kChance:
                 HandleChanceNode(
-                    std::dynamic_pointer_cast<nodes::ChanceNode>(node), // Cast needed
+                    std::dynamic_pointer_cast<nodes::ChanceNode>(node),
                     best_response_player_index, reach_probs, current_board_mask,
-                    deal_abstraction_index, player_ranges, pcm, rrm, deck, out_evs); // Pass dependencies + out_evs
+                    deal_abstraction_index, player_ranges, pcm, rrm, deck, out_evs);
                 break;
             case core::GameTreeNodeType::kTerminal:
+                // *** Pass player_ranges and pcm to HandleTerminalNode ***
                 HandleTerminalNode(
-                    std::dynamic_pointer_cast<nodes::TerminalNode>(node), // Cast needed
-                    best_response_player_index, reach_probs, current_board_mask, out_evs); // Pass out_evs
+                    std::dynamic_pointer_cast<nodes::TerminalNode>(node),
+                    best_response_player_index, reach_probs, current_board_mask,
+                    player_ranges, pcm, out_evs); // Pass dependencies + out_evs
                 break;
             case core::GameTreeNodeType::kShowdown:
                 HandleShowdownNode(
-                    std::dynamic_pointer_cast<nodes::ShowdownNode>(node), // Cast needed
+                    std::dynamic_pointer_cast<nodes::ShowdownNode>(node),
                     best_response_player_index, reach_probs, current_board_mask,
                     player_ranges, rrm, out_evs); // Pass dependencies + out_evs
                 break;
             default:
-                 // Log the unknown type before throwing
                  std::cerr << "[ERROR BR] Unknown node type encountered in CalculateNodeValue: "
                            << static_cast<int>(node->GetNodeType()) << std::endl;
                  throw std::logic_error("Unknown node type encountered in CalculateNodeValue.");
@@ -333,12 +327,9 @@ void BestResponse::CalculateNodeValue(
     } catch (const std::exception& e) {
          std::cerr << "[ERROR BR] Exception during CalculateNodeValue for node type "
                    << static_cast<int>(node->GetNodeType()) << ": " << e.what() << std::endl;
-         // Optionally fill out_evs with NaN before re-throwing
          std::fill(out_evs.begin(), out_evs.end(), std::numeric_limits<double>::quiet_NaN());
          throw; // Re-throw
     }
-
-    // No return value needed
 }
 
 // Takes output vector by reference, marked const
@@ -563,24 +554,104 @@ void BestResponse::HandleChanceNode(
 
 
 void BestResponse::HandleTerminalNode(
-     const std::shared_ptr<nodes::TerminalNode>& node, // Use const&
-     size_t best_response_player_index,
-     const std::vector<std::vector<double>>& /* reach_probs */, // Unused
-     uint64_t /* current_board_mask */, // Unused
-     std::vector<double>& out_evs) const { // Output parameter
+    const std::shared_ptr<nodes::TerminalNode>& node, // Use const&
+    size_t best_response_player_index,
+    const std::vector<std::vector<double>>& reach_probs,
+    uint64_t current_board_mask, // Now used for blocker checks
+    // --- Added Dependencies ---
+    const std::vector<std::vector<core::PrivateCards>>& player_ranges,
+    const ranges::PrivateCardsManager& pcm,
+    // ------------------------
+    std::vector<double>& out_evs) const { // Output parameter
 
-    if (!node) { throw std::logic_error("HandleTerminalNode called with null node ptr."); }
-    size_t num_hands = player_hand_counts_[best_response_player_index];
+   if (!node) { throw std::logic_error("HandleTerminalNode called with null node ptr."); }
+   size_t num_hands_br = player_hand_counts_[best_response_player_index];
+   size_t opponent_player_index = 1 - best_response_player_index;
 
-    // Ensure output vector is correct size
-    if (out_evs.size() != num_hands) out_evs.resize(num_hands);
+   // Ensure output vector is correct size
+   if (out_evs.size() != num_hands_br) out_evs.resize(num_hands_br);
+   // Initialize later based on calculation
 
-    const std::vector<double>& node_payoffs = node->GetPayoffs(); // Returns const&
-    if (node_payoffs.size() != 2) throw std::logic_error("TerminalNode payoff vector size not 2.");
+   const std::vector<double>& node_payoffs = node->GetPayoffs(); // Returns const&
+   if (node_payoffs.size() != 2) throw std::logic_error("TerminalNode payoff vector size not 2.");
+   double payoff_for_br_player = node_payoffs[best_response_player_index];
 
-    double payoff_for_br_player = node_payoffs[best_response_player_index];
-    // Fill the output vector with the constant payoff for this terminal state
-    std::fill(out_evs.begin(), out_evs.end(), payoff_for_br_player);
+   // --- Calculate Opponent Reach Sum and Blocker Sums ---
+   const auto& oppo_range = player_ranges[opponent_player_index];
+   const auto& oppo_reach_prob = reach_probs[opponent_player_index];
+   if (oppo_range.size() != oppo_reach_prob.size()) {
+       throw std::logic_error("Opponent range size and reach prob size mismatch in HandleTerminalNode.");
+   }
+
+   double oppo_total_reach_sum = 0.0;
+   std::vector<double> oppo_card_reach_sum(core::kNumCardsInDeck, 0.0);
+
+   for(size_t opp_hand_idx = 0; opp_hand_idx < oppo_range.size(); ++opp_hand_idx) {
+       const auto& opp_hand = oppo_range[opp_hand_idx];
+       uint64_t opp_mask = opp_hand.GetBoardMask();
+
+       // Skip opponent hands blocked by the current board
+       if (core::Card::DoBoardsOverlap(opp_mask, current_board_mask)) {
+           continue;
+       }
+
+       double current_opp_reach = oppo_reach_prob[opp_hand_idx];
+       oppo_total_reach_sum += current_opp_reach;
+       oppo_card_reach_sum[opp_hand.Card1Int()] += current_opp_reach;
+       oppo_card_reach_sum[opp_hand.Card2Int()] += current_opp_reach;
+   }
+   // --------------------------------------------------
+
+   // --- Calculate Payoff for Each BR Hand ---
+   const auto& br_range = player_ranges[best_response_player_index];
+   for(size_t br_hand_idx = 0; br_hand_idx < num_hands_br; ++br_hand_idx) {
+       const auto& br_hand = br_range[br_hand_idx];
+       uint64_t br_mask = br_hand.GetBoardMask();
+
+       // If BR hand is blocked by board, EV is 0
+       if (core::Card::DoBoardsOverlap(br_mask, current_board_mask)) {
+           out_evs[br_hand_idx] = 0.0;
+           continue;
+       }
+
+       // Calculate non-blocking opponent reach probability
+       double non_blocking_opp_prob = oppo_total_reach_sum
+                                    - oppo_card_reach_sum[br_hand.Card1Int()]
+                                    - oppo_card_reach_sum[br_hand.Card2Int()];
+
+       // Add back reach prob if opponent could hold the *same* hand (using PCM lookup)
+       // This handles the P(Blocker1 AND Blocker2) term correction implicitly
+       std::optional<size_t> opp_equiv_idx = pcm.GetOpponentHandIndex(
+                                                   best_response_player_index,
+                                                   opponent_player_index,
+                                                   br_hand_idx);
+       if (opp_equiv_idx.has_value()) {
+            // Check if the equivalent opponent hand was itself blocked by the board
+            if (!core::Card::DoBoardsOverlap(br_mask, current_board_mask)) { // Use br_mask as it's the same hand
+                 if (opp_equiv_idx.value() < oppo_reach_prob.size()) { // Bounds check
+                   non_blocking_opp_prob += oppo_reach_prob[opp_equiv_idx.value()];
+                 }
+            }
+       }
+
+       // Ensure probability is not negative due to floating point errors
+       non_blocking_opp_prob = std::max(0.0, non_blocking_opp_prob);
+
+       // Final EV for this hand = Payoff * Prob(Opponent doesn't block)
+       out_evs[br_hand_idx] = payoff_for_br_player * non_blocking_opp_prob;
+
+       if (config_.debug_log && br_hand_idx == 0) { // Log first hand only
+           std::cout << "[DEBUG BR Terminal Calc] HandIdx=" << br_hand_idx
+                     << ", Payoff=" << payoff_for_br_player
+                     << ", OppSum=" << oppo_total_reach_sum
+                     << ", Blocker1Sum=" << oppo_card_reach_sum[br_hand.Card1Int()]
+                     << ", Blocker2Sum=" << oppo_card_reach_sum[br_hand.Card2Int()]
+                     << ", OppEquivIdx=" << (opp_equiv_idx.has_value() ? std::to_string(opp_equiv_idx.value()) : "N/A")
+                     << ", NonBlockProb=" << non_blocking_opp_prob
+                     << ", EV=" << out_evs[br_hand_idx] << std::endl;
+       }
+   }
+   // ---------------------------------------
 }
 
 
