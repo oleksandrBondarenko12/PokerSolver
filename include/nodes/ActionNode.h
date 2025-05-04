@@ -8,9 +8,10 @@
 #include <memory> // For std::shared_ptr
 #include <cstddef> // For size_t
 #include <optional> // For optional return values
+#include <trainable/Trainable.h>
 
 // Forward declaration for Trainable interface
-namespace poker_solver { namespace solver { class Trainable; } }
+// namespace poker_solver { namespace solver { class Trainable; } }
 // Forward declaration for concrete Trainable types (if needed in header, though unlikely)
 // namespace poker_solver { namespace solver { class DiscountedCfrTrainable; } }
 
