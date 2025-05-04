@@ -7,6 +7,7 @@
 #include <memory> // For std::shared_ptr
 #include <string>
 #include <vector>
+#include <GameTree.h>
 #include <json.hpp> // Include full header
 
 // *** INCLUDE the full definition of GameTree using correct relative path ***

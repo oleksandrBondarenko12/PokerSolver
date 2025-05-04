@@ -29,8 +29,8 @@ class DiscountedCfrTrainable : public Trainable {
  public:
   // Constructor.
   DiscountedCfrTrainable(
-      const std::vector<core::PrivateCards>* player_range,
-      const nodes::ActionNode& action_node);
+      size_t num_actions,
+      size_t num_opponent_hands_in_infoset);
 
   // Virtual destructor.
   ~DiscountedCfrTrainable() override = default;

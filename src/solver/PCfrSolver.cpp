@@ -194,7 +194,7 @@ std::vector<double> PCfrSolver::cfr_utility(
         case core::GameTreeNodeType::kTerminal:
             return cfr_terminal_node(std::dynamic_pointer_cast<nodes::TerminalNode>(node), reach_probs, traverser, chance_reach);
         case core::GameTreeNodeType::kShowdown:
-            return cfr_showdown_node(std::dynamic_pointer_cast<nodes::ShowdownNode>(node), reach_probs, traverser, current_board_mask);
+            return cfr_showdown_node(std::dynamic_pointer_cast<nodes::ShowdownNode>(node), reach_probs, traverser, current_board_mask, chance_reach);
         case core::GameTreeNodeType::kChance:
             return cfr_chance_node(std::dynamic_pointer_cast<nodes::ChanceNode>(node), reach_probs, traverser, iteration, current_board_mask, chance_reach);
         case core::GameTreeNodeType::kAction:
@@ -400,7 +400,7 @@ std::vector<double> PCfrSolver::cfr_showdown_node(
     std::shared_ptr<nodes::ShowdownNode> node,
     const std::vector<std::vector<double>>& reach_probs,
     int traverser,
-    uint64_t final_board_mask)
+    uint64_t final_board_mask, double chance_reach)
 {
     int opponent_player = 1 - traverser;
     const auto& traverser_range = pcm_->GetPlayerRange(traverser);
@@ -437,6 +437,9 @@ std::vector<double> PCfrSolver::cfr_showdown_node(
 
             traverser_utility[trav_orig_idx] += reach_probs[opponent_player][oppo_orig_idx] * payoff_for_traverser;
         }
+    }
+    for (double & util : traverser_utility) {
+        util *= chance_reach; // Apply chance reach probability
     }
     return traverser_utility;
 }

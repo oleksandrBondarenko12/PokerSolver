@@ -89,7 +89,8 @@ private:
         std::shared_ptr<nodes::ShowdownNode> node,
         const std::vector<std::vector<double>>& reach_probs,
         int traverser,
-        uint64_t final_board_mask);
+        uint64_t final_board_mask,
+        double chance_reach); // Pass chance reach for correct weighting
 
     // Helper function for Terminal Nodes within cfr_utility
     std::vector<double> cfr_terminal_node(
