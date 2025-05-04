@@ -1,17 +1,20 @@
 #include "trainable/DiscountedCfrTrainable.h" // Adjust path if necessary
-#include "nodes/ActionNode.h" // Need full definition now
-#include "nodes/GameActions.h" // For dumping action strings
-#include "ranges/PrivateCards.h"
+#include "nodes/ActionNode.h"             // Need full definition for constructor
+#include "nodes/GameActions.h"            // For dumping action strings
+#include "ranges/PrivateCards.h"          // For PrivateCards info
 
 #include <json.hpp> // Include the actual JSON library header
 #include <vector>
-#include <cmath>     // For std::pow, std::max
+#include <cmath>     // For std::pow, std::max, std::isnan
 #include <numeric>   // For std::accumulate
 #include <stdexcept> // For exceptions
 #include <limits>    // For numeric_limits
 #include <iostream>  // For potential debug/error output
 #include <utility>   // For std::move
-#include <typeinfo> // For dynamic_cast
+#include <typeinfo>  // For dynamic_cast
+#include <algorithm> // For std::copy, std::fill
+#include <iomanip>   // For json dumping precision (optional)
+
 
 // Use aliases
 using json = nlohmann::json;
@@ -30,115 +33,102 @@ DiscountedCfrTrainable::DiscountedCfrTrainable(
       player_range_(player_range) {
 
     if (!player_range_) {
-        throw std::invalid_argument("Player range pointer cannot be null.");
+        throw std::invalid_argument("DiscountedCfrTrainable: Player range pointer cannot be null.");
     }
 
-    // Use GetActions() method from ActionNode
     num_actions_ = action_node_.GetActions().size();
     num_hands_ = player_range_->size();
 
-    // Handle nodes with zero actions or hands gracefully
     if (num_actions_ == 0) {
-        // std::cerr << "[WARNING] DiscountedCfrTrainable created for ActionNode with 0 actions." << std::endl;
+        std::cerr << "[WARN] DiscountedCfrTrainable created for ActionNode with 0 actions." << std::endl;
     }
     if (num_hands_ == 0) {
-        // std::cerr << "[WARNING] DiscountedCfrTrainable created with 0 hands in range." << std::endl;
+        std::cerr << "[WARN] DiscountedCfrTrainable created with 0 hands in range." << std::endl;
     }
 
     size_t total_size = num_actions_ * num_hands_;
-    cumulative_regrets_.resize(total_size, 0.0f);
-    cumulative_strategy_sum_.resize(total_size, 0.0); // Initialize sums to 0
+    if (total_size > 0) {
+        cumulative_regrets_.resize(total_size, 0.0f);
+        cumulative_strategy_sum_.resize(total_size, 0.0); // Initialize sums to 0
 
-    // Initialize strategies to uniform (handle division by zero if num_actions_ is 0)
-    float initial_prob = (num_actions_ > 0) ? 1.0f / static_cast<float>(num_actions_) : 0.0f;
-    current_strategy_.resize(total_size, initial_prob);
-    average_strategy_.resize(total_size, initial_prob);
+        float initial_prob = 1.0f / static_cast<float>(num_actions_);
+        current_strategy_.resize(total_size, initial_prob);
+        average_strategy_.resize(total_size, initial_prob);
+        expected_values_.resize(total_size, std::numeric_limits<float>::quiet_NaN());
 
-    // Initialize EVs to NaN to indicate they haven't been set
-    expected_values_.resize(total_size, std::numeric_limits<float>::quiet_NaN());
-
-    // Initial strategies are considered valid
-    current_strategy_valid_ = true;
-    average_strategy_valid_ = true;
+        current_strategy_valid_ = true;
+        average_strategy_valid_ = true;
+    } else {
+        // Handle case with 0 actions or 0 hands - vectors remain empty
+        current_strategy_valid_ = true;
+        average_strategy_valid_ = true;
+    }
 }
 
 
 // --- Strategy Calculation Helpers ---
 
-// Calculates the current strategy profile based on positive regrets.
 void DiscountedCfrTrainable::CalculateCurrentStrategy() {
     if (num_actions_ == 0 || num_hands_ == 0) {
         current_strategy_valid_ = true;
         return; // Nothing to calculate
     }
 
-    // No need to reset, we overwrite below
-    // current_strategy_.assign(num_actions_ * num_hands_, 0.0f);
     float default_prob = 1.0f / static_cast<float>(num_actions_);
+    size_t total_size = num_actions_ * num_hands_;
+
+    // Ensure strategy vector has correct size
+    if(current_strategy_.size() != total_size) {
+        current_strategy_.resize(total_size);
+    }
 
     for (size_t h = 0; h < num_hands_; ++h) {
-        double regret_sum = 0.0; // Use double for sum to maintain precision
-        // Calculate sum of positive regrets for this hand
+        double regret_sum = 0.0;
         for (size_t a = 0; a < num_actions_; ++a) {
             size_t index = a * num_hands_ + h;
-            // Ensure index is valid (should be, but good practice)
-            if (index < cumulative_regrets_.size()) {
-                 regret_sum += std::max(0.0f, cumulative_regrets_[index]);
-            }
+            regret_sum += std::max(0.0f, cumulative_regrets_[index]);
         }
 
-        // Calculate strategy for this hand
         for (size_t a = 0; a < num_actions_; ++a) {
             size_t index = a * num_hands_ + h;
-             if (index < cumulative_regrets_.size()) { // Check index again
-                if (regret_sum > 1e-9) { // Use a slightly larger tolerance for float sums
-                    current_strategy_[index] =
-                        std::max(0.0f, cumulative_regrets_[index]) / static_cast<float>(regret_sum);
-                } else {
-                    // Default to uniform strategy if all regrets are non-positive
-                    current_strategy_[index] = default_prob;
-                }
-             } else {
-                 // Should not happen if logic is correct
-                 current_strategy_[index] = default_prob;
-             }
+            if (regret_sum > 1e-9) {
+                current_strategy_[index] =
+                    std::max(0.0f, cumulative_regrets_[index]) / static_cast<float>(regret_sum);
+            } else {
+                current_strategy_[index] = default_prob;
+            }
         }
     }
     current_strategy_valid_ = true;
 }
 
-// Calculates the average strategy profile based on cumulative strategy sums.
+
 void DiscountedCfrTrainable::CalculateAverageStrategy() const {
      if (num_actions_ == 0 || num_hands_ == 0) {
         average_strategy_valid_ = true;
-        return; // Nothing to calculate
+        return;
     }
 
-    // No need to reset, we overwrite below
-    // average_strategy_.assign(num_actions_ * num_hands_, 0.0f);
     float default_prob = 1.0f / static_cast<float>(num_actions_);
+    size_t total_size = num_actions_ * num_hands_;
+
+    // Ensure strategy vector has correct size
+     if(average_strategy_.size() != total_size) {
+        average_strategy_.resize(total_size);
+    }
 
     for (size_t h = 0; h < num_hands_; ++h) {
         double strategy_sum_total = 0.0;
-        // Calculate total strategy sum for this hand
         for (size_t a = 0; a < num_actions_; ++a) {
              size_t index = a * num_hands_ + h;
-             if (index < cumulative_strategy_sum_.size()) { // Index check
-                 strategy_sum_total += cumulative_strategy_sum_[index];
-             }
+             strategy_sum_total += cumulative_strategy_sum_[index];
         }
 
-        // Calculate average strategy for this hand
         for (size_t a = 0; a < num_actions_; ++a) {
             size_t index = a * num_hands_ + h;
-             if (index < cumulative_strategy_sum_.size()) { // Index check
-                 if (strategy_sum_total > 1e-9) { // Use tolerance
-                     average_strategy_[index] =
-                        static_cast<float>(cumulative_strategy_sum_[index] / strategy_sum_total);
-                 } else {
-                     // Default to uniform if sum is zero (can happen early on)
-                     average_strategy_[index] = default_prob;
-                 }
+             if (strategy_sum_total > 1e-9) {
+                 average_strategy_[index] =
+                    static_cast<float>(cumulative_strategy_sum_[index] / strategy_sum_total);
              } else {
                  average_strategy_[index] = default_prob;
              }
@@ -151,110 +141,117 @@ void DiscountedCfrTrainable::CalculateAverageStrategy() const {
 // --- Overridden Interface Methods ---
 
 const std::vector<float>& DiscountedCfrTrainable::GetCurrentStrategy() const {
-    // Lazily calculate if needed
     if (!current_strategy_valid_) {
-        // Need to cast away const to call the non-const calculation method.
-        // This is a common pattern for lazy evaluation in const methods.
         const_cast<DiscountedCfrTrainable*>(this)->CalculateCurrentStrategy();
     }
     return current_strategy_;
 }
 
 const std::vector<float>& DiscountedCfrTrainable::GetAverageStrategy() const {
-    // Lazily calculate if needed
     if (!average_strategy_valid_) {
-        CalculateAverageStrategy(); // This method is const
+        CalculateAverageStrategy();
     }
     return average_strategy_;
 }
 
+// *** Uses scalar weight for pi_{-i} * pi_c ***
 void DiscountedCfrTrainable::UpdateRegrets(const std::vector<float>& regrets,
                                            int iteration,
-                                           const std::vector<float>& reach_probs) {
+                                           double reach_prob_opponent_chance_scalar) {
     size_t total_size = num_actions_ * num_hands_;
     if (regrets.size() != total_size) {
          throw std::invalid_argument("Regret vector size mismatch in UpdateRegrets.");
     }
-     // Allow reach_probs to be empty if not used by specific DCFR variant,
-     // but check size if provided.
-     if (!reach_probs.empty() && reach_probs.size() != num_hands_) {
-          throw std::invalid_argument("Reach probability vector size mismatch in UpdateRegrets.");
-     }
-     // If reach_probs is empty, we need a default vector of 1.0s if the algorithm uses it
-     const std::vector<float>* rp_ptr = &reach_probs;
-     std::vector<float> default_reach_probs;
-     if (reach_probs.empty()) {
-         default_reach_probs.assign(num_hands_, 1.0f);
-         rp_ptr = &default_reach_probs;
-     }
-
-
-    // Iteration must be positive for DCFR powers
     if (iteration <= 0) {
-        // Allow iteration 0 for initialization maybe? Let's require positive.
         throw std::invalid_argument("Iteration number must be positive for DCFR.");
     }
+    double weight = std::max(0.0, reach_prob_opponent_chance_scalar); // Ensure non-negative
 
-    // Calculate discounting factors (using double for intermediate precision)
+    // Calculate discounting factors
     double iter_d = static_cast<double>(iteration);
-    double alpha_discount = std::pow(iter_d, kAlpha);
-    alpha_discount = alpha_discount / (alpha_discount + 1.0);
-    double beta_discount = std::pow(iter_d, kBeta);
-    beta_discount = beta_discount / (beta_discount + 1.0);
-    double gamma_discount_base = std::pow(iter_d / (iter_d + 1.0), kGamma);
+    double alpha_discount = std::pow(iter_d, kAlpha) / (std::pow(iter_d, kAlpha) + 1.0);
+    double beta_discount = std::pow(iter_d, kBeta) / (std::pow(iter_d, kBeta) + 1.0);
 
-    // Update cumulative regrets
+    float cf_weight_float = static_cast<float>(weight);
+
     for (size_t i = 0; i < total_size; ++i) {
-        // Apply discount factor based on sign of cumulative regret *before* adding current regret
+        // Apply discount factor based on sign *before* adding weighted regret
         if (cumulative_regrets_[i] > 0) {
             cumulative_regrets_[i] *= static_cast<float>(alpha_discount);
         } else {
             cumulative_regrets_[i] *= static_cast<float>(beta_discount);
         }
-        cumulative_regrets_[i] += regrets[i]; // Add current iteration's regret
+        // Weight the added regret by the scalar cf_weight
+        cumulative_regrets_[i] += regrets[i] * cf_weight_float;
     }
 
-    // Update cumulative strategy sums
-    // First, ensure current strategy is up-to-date based on new regrets
-    CalculateCurrentStrategy(); // Recalculates based on updated regrets
-    for (size_t h = 0; h < num_hands_; ++h) {
-        // DCFR applies player's reach probability to strategy update
-        // Note: Some DCFR versions apply opponent reach prob to regret update instead.
-        // This implementation follows the strategy weighting approach.
-        double weighted_gamma = gamma_discount_base * static_cast<double>((*rp_ptr)[h]);
-        for (size_t a = 0; a < num_actions_; ++a) {
-            size_t index = a * num_hands_ + h;
-            // cumulative_strategy_sum_[index] *= kTheta; // Apply optional theta discount
-            cumulative_strategy_sum_[index] += weighted_gamma * static_cast<double>(current_strategy_[index]);
-        }
-    }
-
-    // Mark cached strategies as invalid (current was just updated, average needs recalc)
-    current_strategy_valid_ = true;
+    // Mark cached strategies as invalid
+    current_strategy_valid_ = false;
     average_strategy_valid_ = false;
 }
 
+// *** Renamed & uses scalar weight for pi_i * pi_c ***
+void DiscountedCfrTrainable::AccumulateAverageStrategy(
+    const std::vector<float>& current_strategy,
+    int iteration,
+    double reach_prob_player_chance_scalar) {
+
+    size_t total_size = num_actions_ * num_hands_;
+     if (current_strategy.size() != total_size) {
+         throw std::invalid_argument("Current strategy vector size mismatch in AccumulateAverageStrategy.");
+     }
+     if (iteration <= 0) {
+        throw std::invalid_argument("Iteration number must be positive for DCFR.");
+     }
+     double weight = std::max(0.0, reach_prob_player_chance_scalar); // Ensure non-negative
+
+     // Calculate discounting factor for strategy accumulation
+     double iter_d = static_cast<double>(iteration);
+     // Note: Original paper might use iteration^gamma or (iter/(iter+1))^gamma.
+     // Using (iter/(iter+1))^gamma here for consistency with previous steps.
+     double gamma_discount_factor = std::pow(iter_d / (iter_d + 1.0), kGamma);
+
+     double final_weight = weight * gamma_discount_factor;
+
+     for (size_t i = 0; i < total_size; ++i) {
+         // Weight the added strategy by the scalar weight pi_i * pi_c * discount
+         cumulative_strategy_sum_[i] += final_weight * static_cast<double>(current_strategy[i]);
+     }
+
+     // Mark average strategy as invalid since the sum changed
+     average_strategy_valid_ = false;
+}
+
 void DiscountedCfrTrainable::SetEv(const std::vector<float>& evs) {
-    if (evs.size() != expected_values_.size()) {
-         throw std::invalid_argument("EV vector size mismatch in SetEv.");
+    size_t total_size = num_actions_ * num_hands_;
+    if (evs.size() != total_size) {
+         // Allow setting EVs even if sizes mismatch, but warn and resize?
+         // Or throw? Let's throw for stricter checking.
+         throw std::invalid_argument("EV vector size mismatch in SetEv. Expected "
+              + std::to_string(total_size) + ", got " + std::to_string(evs.size()));
     }
-    expected_values_ = evs; // Copy the EV data
+    expected_values_ = evs;
 }
 
 json DiscountedCfrTrainable::DumpStrategy(bool with_ev) const {
-    json result;
-    json strategy_map;
-    // Ensure average strategy is calculated before dumping
-    const auto& avg_strategy = GetAverageStrategy();
+    json result = json::object(); // Ensure it's an object
+    json strategy_map = json::object();
+    json ev_map = json::object();
+
+    const auto& avg_strategy = GetAverageStrategy(); // Ensure calculated
 
     if (!player_range_) {
         result["error"] = "Player range not set";
         return result;
     }
+    if (num_hands_ == 0) {
+        result["warning"] = "Player range is empty";
+        // Still return basic structure if possible
+    }
 
     // Get action strings
     std::vector<std::string> action_strings;
-    // Use const reference from action_node_
+    action_strings.reserve(num_actions_);
     for(const auto& action : action_node_.GetActions()) {
         action_strings.push_back(action.ToString());
     }
@@ -262,52 +259,50 @@ json DiscountedCfrTrainable::DumpStrategy(bool with_ev) const {
 
 
     for (size_t h = 0; h < num_hands_; ++h) {
-        // Use const reference and check pointer validity
         const core::PrivateCards& hand = (*player_range_)[h];
         std::string hand_str = hand.ToString();
-        std::vector<float> hand_strategy(num_actions_);
+
+        std::vector<float> hand_avg_strategy(num_actions_);
+        std::vector<float> hand_evs(num_actions_, std::numeric_limits<float>::quiet_NaN());
+
         for (size_t a = 0; a < num_actions_; ++a) {
              size_t index = a * num_hands_ + h;
-             if (index < avg_strategy.size()) { // Bounds check
-                hand_strategy[a] = avg_strategy[index];
-             } else {
-                 hand_strategy[a] = std::numeric_limits<float>::quiet_NaN(); // Indicate error
+             if (index < avg_strategy.size()) {
+                hand_avg_strategy[a] = avg_strategy[index];
+             }
+             if (with_ev && index < expected_values_.size()) {
+                 hand_evs[a] = expected_values_[index];
              }
         }
-        strategy_map[hand_str] = hand_strategy;
+        strategy_map[hand_str] = hand_avg_strategy;
+        if(with_ev) {
+            ev_map[hand_str] = hand_evs;
+        }
     }
     result["strategy"] = strategy_map;
 
     if (with_ev) {
-        // Check if EVs have been set (are not all NaN) before dumping
-        bool evs_set = false;
-        for(float ev : expected_values_) {
-            if (!std::isnan(ev)) {
-                evs_set = true;
-                break;
-            }
-        }
-        if (evs_set) {
-            result["evs"] = DumpEvs()["evs"]; // Reuse DumpEvs logic
-        } else {
-             result["evs"] = "Not calculated";
-        }
+        result["evs"] = ev_map;
     }
 
     return result;
 }
 
 json DiscountedCfrTrainable::DumpEvs() const {
-    json result;
-    json ev_map;
+    json result = json::object();
+    json ev_map = json::object();
 
      if (!player_range_) {
         result["error"] = "Player range not set";
         return result;
     }
+     if (num_hands_ == 0) {
+         result["warning"] = "Player range is empty";
+     }
 
     // Get action strings
     std::vector<std::string> action_strings;
+    action_strings.reserve(num_actions_);
      for(const auto& action : action_node_.GetActions()) {
         action_strings.push_back(action.ToString());
     }
@@ -316,13 +311,11 @@ json DiscountedCfrTrainable::DumpEvs() const {
     for (size_t h = 0; h < num_hands_; ++h) {
         const core::PrivateCards& hand = (*player_range_)[h];
         std::string hand_str = hand.ToString();
-        std::vector<float> hand_evs(num_actions_);
+        std::vector<float> hand_evs(num_actions_, std::numeric_limits<float>::quiet_NaN());
         for (size_t a = 0; a < num_actions_; ++a) {
              size_t index = a * num_hands_ + h;
-             if (index < expected_values_.size()) { // Bounds check
+             if (index < expected_values_.size()) {
                 hand_evs[a] = expected_values_[index];
-             } else {
-                  hand_evs[a] = std::numeric_limits<float>::quiet_NaN(); // Indicate error
              }
         }
         ev_map[hand_str] = hand_evs;
@@ -333,35 +326,25 @@ json DiscountedCfrTrainable::DumpEvs() const {
 }
 
 
-// --- Implementation for CopyStateFrom ---
 void DiscountedCfrTrainable::CopyStateFrom(const Trainable& other) {
-    // Use dynamic_cast to safely check if 'other' is the same type
-    // Cast to const pointer first
     const auto* other_dcfr_ptr = dynamic_cast<const DiscountedCfrTrainable*>(&other);
     if (!other_dcfr_ptr) {
-        // Throw if the type is not compatible
-        throw std::invalid_argument(
-            "Cannot copy state: 'other' is not a DiscountedCfrTrainable.");
+        throw std::invalid_argument("Cannot copy state: 'other' is not a DiscountedCfrTrainable.");
     }
-    // Now safe to use other_dcfr_ptr
     const DiscountedCfrTrainable& other_dcfr = *other_dcfr_ptr;
 
-    // Check dimensions are compatible.
     if (num_actions_ != other_dcfr.num_actions_ || num_hands_ != other_dcfr.num_hands_) {
-         throw std::invalid_argument(
-            "Cannot copy state: Dimensions mismatch between Trainable objects.");
+         throw std::invalid_argument("Cannot copy state: Dimensions mismatch.");
     }
 
-    // Copy the relevant state vectors
     this->cumulative_regrets_ = other_dcfr.cumulative_regrets_;
     this->cumulative_strategy_sum_ = other_dcfr.cumulative_strategy_sum_;
     this->current_strategy_ = other_dcfr.current_strategy_;
     this->average_strategy_ = other_dcfr.average_strategy_;
     this->current_strategy_valid_ = other_dcfr.current_strategy_valid_;
     this->average_strategy_valid_ = other_dcfr.average_strategy_valid_;
-    this->expected_values_ = other_dcfr.expected_values_; // Copy EVs
+    this->expected_values_ = other_dcfr.expected_values_;
 }
-
 
 } // namespace solver
 } // namespace poker_solver
