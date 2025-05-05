@@ -113,7 +113,7 @@ void GameTree::BuildBranch(std::shared_ptr<core::GameTreeNode> current_node,
                  // This should not happen if built dynamically via the Rule constructor
                  throw std::logic_error("Build rule not set in GameTree for ChanceNode building.");
              }
-             BuildChanceNode(chance_node, build_rule_.value()); // Use stored original rule
+            BuildChanceNode(chance_node, build_rule_.value()); // Use stored original rule
             break;
         }
         case core::GameTreeNodeType::kShowdown: // Terminal state
@@ -185,7 +185,8 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
                                config::Rule current_rule_state, // Takes Rule by value
                                const core::GameAction& last_action,
                                int actions_this_round,
-                               int raises_this_street) {
+                               int raises_this_street
+                               int pot_before_action) {
     if (!node) return;
 
     size_t current_player = node->GetPlayerIndex();
@@ -290,7 +291,8 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
         core::PokerAction action_type = is_facing_action ? core::PokerAction::kRaise : core::PokerAction::kBet;
         std::vector<double> bet_amounts_to_add = GetPossibleBets(
             current_rule_state, current_player, opponent_player, current_player_commit,
-            opponent_commit, stack, last_action, raises_this_street);
+            opponent_commit, stack, last_action, raises_this_street,
+            node->GetPot()); // Pass pot before action
 
         for (double amount_to_add : bet_amounts_to_add) {
             if (amount_to_add <= 1e-9 || amount_to_add > player_stack_remaining + 1e-9) continue;
@@ -334,99 +336,151 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
 // Calculates possible bet/raise amounts based on StreetSettings
 // Added const qualifier
 std::vector<double> GameTree::GetPossibleBets(
-        const config::Rule& rule,
-        size_t player_index,
-        size_t opponent_index,
-        double current_player_commit,
-        double opponent_commit,
-        double effective_stack,
-        const core::GameAction& last_action,
-        int raises_this_street) const { // Added const
+    const config::Rule& rule,
+    size_t player_index,
+    size_t /*opponent_index*/, // opponent_index is unused
+    double current_player_commit,
+    double opponent_commit,
+    double effective_stack,
+    const core::GameAction& last_action,
+    int /*raises_this_street*/, // raises_this_street is unused in standard bet sizing logic
+    double pot_before_action) const 
+{ // Pot size *before* this player acts
 
-    // Use the round from the Rule object passed in
-    core::GameRound round = rule.GetStartingRound();
+    core::GameRound round = node->GetRound(); // Get round from the node, not the initial rule
 
+    // Preflop betting logic is typically different (based on blinds/limps/raises)
+    // and often hardcoded or handled by a separate configuration.
+    // This implementation focuses on postflop pot-percentage betting.
     if (round == core::GameRound::kPreflop) {
-         std::cerr << "[WARNING] GetPossibleBets called for Preflop - returning empty. Implement preflop logic if needed." << std::endl;
-         return {};
+        std::cerr << "[WARNING] GetPossibleBets called for Preflop - returning empty. Implement preflop logic if needed." << std::endl;
+        return {};
     }
 
     const config::GameTreeBuildingSettings& settings = rule.GetBuildSettings();
     const config::StreetSetting& street_setting = settings.GetSetting(player_index, round);
 
-    // *** FIX: Type mismatch ***
-    std::vector<double> size_ratios_percent_double; // Use double vector
+    std::vector<double> size_ratios_percent_double;
     bool allow_all_in = street_setting.allow_all_in;
-    double current_pot = current_player_commit + opponent_commit;
     bool is_raise = opponent_commit > current_player_commit;
-    bool is_donk = (player_index == 1 && round > core::GameRound::kPreflop &&
-                    last_action.GetAction() == core::PokerAction::kRoundBegin &&
+    bool is_donk = (player_index == 1 && // OOP
+                    round > core::GameRound::kPreflop &&
+                    // Check if the last action was the start of the round for the opponent (implied check)
+                    // or if the last action was explicitly a check by the opponent.
+                    (last_action.GetAction() == core::PokerAction::kRoundBegin || last_action.GetAction() == core::PokerAction::kCheck) &&
                     !street_setting.donk_sizes_percent.empty());
 
-    // *** FIX: Assign to double vector ***
-    if (is_donk) size_ratios_percent_double = street_setting.donk_sizes_percent;
-    else if (is_raise) size_ratios_percent_double = street_setting.raise_sizes_percent;
-    else size_ratios_percent_double = street_setting.bet_sizes_percent;
+    if (is_donk) {
+        size_ratios_percent_double = street_setting.donk_sizes_percent;
+    } else if (is_raise) {
+        size_ratios_percent_double = street_setting.raise_sizes_percent;
+    } else { // Bet
+        size_ratios_percent_double = street_setting.bet_sizes_percent;
+    }
 
-    std::set<double> possible_amounts_to_add;
+    std::set<double> possible_amounts_to_add; // Use set to store unique absolute amounts to add
     double stack_remaining = effective_stack - current_player_commit;
-    if (stack_remaining <= 1e-9) return {};
+    if (stack_remaining <= 1e-9) {
+        return {}; // Cannot bet/raise if no stack left
+    }
 
-    // *** FIX: Define call_amount outside the loop ***
     double call_amount = is_raise ? (opponent_commit - current_player_commit) : 0.0;
+    double min_bet_size = rule.GetBigBlind(); // Minimum legal bet size postflop is BB
 
-    for (double ratio_percent : size_ratios_percent_double) { // Iterate over double vector
+    for (double ratio_percent : size_ratios_percent_double) {
         if (ratio_percent <= 0) continue;
         double ratio = ratio_percent / 100.0;
-        double bet_size_calculated = ratio * current_pot;
-        double min_bet_raise_size = rule.GetBigBlind();
 
-        double final_size = 0; // This is the size of the bet OR the raise portion
+        double calculated_size = 0; // Size of the bet OR the raise amount *on top of the call*
+
         if (is_raise) {
-            // Min raise size is BB or previous bet/raise amount
-            double min_raise_size = std::max(min_bet_raise_size, call_amount);
-            final_size = std::max(bet_size_calculated, min_raise_size);
+            // Calculate raise size based on pot *after* calling
+            double pot_after_call = pot_before_action + call_amount; // Pot + caller's call + opponent's bet/raise being called
+            calculated_size = ratio * pot_after_call; // This is the desired raise amount *on top*
         } else { // Bet or Donk
-            final_size = std::max(bet_size_calculated, min_bet_raise_size);
+            // Calculate bet size based on pot *before* betting
+            calculated_size = ratio * pot_before_action;
         }
+
+        // --- Apply minimum size rules ---
+        double final_size = 0.0; // Size of bet or raise amount *on top* of call
+        if (is_raise) {
+            // Minimum raise amount *on top* must be at least the size of the previous bet/raise
+            // For simplicity here, we use the amount needed to call (call_amount) as the minimum *additional* raise amount
+            // A more precise implementation would track the previous bet/raise amount explicitly.
+            // Also enforce minimum raise is at least BB size on top.
+            double min_raise_top_up = std::max(min_bet_size, call_amount);
+            final_size = std::max(calculated_size, min_raise_top_up);
+        } else { // Bet or Donk
+            // Minimum bet is Big Blind
+            final_size = std::max(calculated_size, min_bet_size);
+        }
+
+        // Round the calculated size (bet size or raise-top-up size)
         double rounded_size = RoundBet(final_size, rule.GetSmallBlind());
+
+        // Calculate the TOTAL amount the player needs to add to the pot for this action
         double amount_to_add = is_raise ? (call_amount + rounded_size) : rounded_size;
+
+        // Cap amount_to_add by the player's remaining stack
         amount_to_add = std::min(amount_to_add, stack_remaining);
 
+        // Add the valid amount to the set if it's positive and adds value if raising
         if (amount_to_add > 1e-9) {
-             if (!is_raise || amount_to_add > call_amount + 1e-9) { // Ensure raise adds something
-                 possible_amounts_to_add.insert(amount_to_add);
-             }
+            if (!is_raise || amount_to_add > call_amount + 1e-9) { // Ensure raise adds > 0 on top of call
+                possible_amounts_to_add.insert(amount_to_add);
+            }
         }
     }
 
+// --- Handle All-In ---
     if (allow_all_in && stack_remaining > 1e-9) {
-         bool all_in_covered = false;
-         if (!possible_amounts_to_add.empty()) {
-             double max_bet = *possible_amounts_to_add.rbegin();
-             if (std::abs(max_bet - stack_remaining) < 1e-9) all_in_covered = true;
-         }
-         // *** FIX: Use call_amount defined earlier ***
-         // Min valid action check: ensure all-in is at least a valid bet/raise if possible
-         double min_valid_action_size = is_raise ? std::max(rule.GetBigBlind(), call_amount) : rule.GetBigBlind();
-         double min_valid_total_add = is_raise ? (call_amount + min_valid_action_size) : min_valid_action_size;
+        bool all_in_covered = false;
+        if (!possible_amounts_to_add.empty()) {
+            // Check if the largest calculated bet/raise is already the all-in amount
+            double max_calculated_add = *possible_amounts_to_add.rbegin();
+            if (std::abs(max_calculated_add - stack_remaining) < 1e-9) {
+                all_in_covered = true;
+            }
+        }
 
-         // Add all-in if not covered AND it's a valid action size OR it's the only option left
-         if (!all_in_covered) {
-             if (!is_raise || stack_remaining > call_amount + 1e-9) { // Must be more than a call if raising
-                 if (stack_remaining >= min_valid_action_size - 1e-9) { // Check if all-in is at least min bet/raise size
-                    possible_amounts_to_add.insert(stack_remaining);
-                 } else {
-                     // Allow undersized all-in only if it's the only option?
-                     // Or if it's a raise completing the action? Complex rule.
-                     // Let's allow it for now if allow_all_in is true.
-                      possible_amounts_to_add.insert(stack_remaining);
-                 }
-             }
-         }
+        if (!all_in_covered) {
+            // Determine if pushing the remaining stack is a valid action size
+            bool is_valid_all_in = false;
+            if (is_raise) {
+                // All-in raise is valid if it's more than just calling
+                if (stack_remaining > call_amount + 1e-9) {
+                    // Check if the raise amount meets the minimum raise requirement
+                    double raise_amount = stack_remaining - call_amount;
+                    double min_raise_top_up = std::max(min_bet_size, call_amount);
+                    if (raise_amount >= min_raise_top_up - 1e-9) {
+                        is_valid_all_in = true;
+                    } else {
+                        // Allow undersized all-in raise (standard poker rule)
+                        is_valid_all_in = true;
+                    }
+                }
+            } else { // Bet or Donk
+                // All-in bet is valid if it's at least the minimum bet size,
+                // or if it's less but it's all the player has.
+                if (stack_remaining >= min_bet_size - 1e-9) {
+                    is_valid_all_in = true;
+                } else {
+                    // Allow undersized all-in bet
+                    is_valid_all_in = true;
+                }
+            }
+
+            if (is_valid_all_in) {
+                possible_amounts_to_add.insert(stack_remaining);
+            }
+        }
     }
+
+    // Convert the set of unique amounts to a vector
     return std::vector<double>(possible_amounts_to_add.begin(), possible_amounts_to_add.end());
 }
+
 
 // Helper for rounding bets
 double GameTree::RoundBet(double amount, double min_bet_increment) {

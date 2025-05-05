@@ -72,7 +72,8 @@ class GameTree {
         double opponent_commit,
         double effective_stack,
         const core::GameAction& last_action,
-        int raises_this_street) const;
+        int raises_this_street
+        double pot_before_action) const;
 
   static double RoundBet(double amount, double min_bet_increment);
 
