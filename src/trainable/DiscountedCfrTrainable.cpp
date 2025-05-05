@@ -131,7 +131,7 @@ void DiscountedCfrTrainable::CalculateAverageStrategy() const {
                     static_cast<float>(cumulative_strategy_sum_[index] / strategy_sum_total);
              } else {
                  average_strategy_[index] = default_prob;
-             }
+            }
         }
     }
     average_strategy_valid_ = true;
