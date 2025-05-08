@@ -29,27 +29,27 @@ class DiscountedCfrTrainable : public Trainable {
  public:
   // Constructor.
   DiscountedCfrTrainable(
-      size_t num_actions,
-      size_t num_opponent_hands_in_infoset);
+    const std::vector<core::PrivateCards>* player_range, // Pass range pointer
+    const nodes::ActionNode& action_node); 
 
   // Virtual destructor.
   ~DiscountedCfrTrainable() override = default;
 
   // --- Overridden Interface Methods ---
 
-  const std::vector<float>& GetCurrentStrategy() const override;
-  const std::vector<float>& GetAverageStrategy() const override;
+  const std::vector<double>& GetCurrentStrategy() const override;
+  const std::vector<double>& GetAverageStrategy() const override;
 
   // *** CORRECTED SIGNATURE ***
-  void UpdateRegrets(const std::vector<float>& regrets, int iteration,
+  void UpdateRegrets(const std::vector<double>& regrets, int iteration,
                      double reach_prob_opponent_chance_scalar) override;
 
   // *** ADDED & RENAMED METHOD with CORRECTED SIGNATURE ***
-  void AccumulateAverageStrategy(const std::vector<float>& current_strategy,
+  void AccumulateAverageStrategy(const std::vector<double>& current_strategy,
                                  int iteration,
                                  double reach_prob_player_chance_scalar) override;
 
-  void SetEv(const std::vector<float>& evs) override;
+  void SetEv(const std::vector<double>& evs) override;
 
   json DumpStrategy(bool with_ev) const override;
   json DumpEvs() const override;
@@ -72,13 +72,13 @@ class DiscountedCfrTrainable : public Trainable {
   const std::vector<core::PrivateCards>* player_range_; // Not owned
   size_t num_actions_;
   size_t num_hands_;
-  std::vector<float> cumulative_regrets_;
+  std::vector<double> cumulative_regrets_;
   std::vector<double> cumulative_strategy_sum_;
-  mutable std::vector<float> current_strategy_;
-  mutable std::vector<float> average_strategy_;
+  mutable std::vector<double> current_strategy_;
+  mutable std::vector<double> average_strategy_;
   mutable bool current_strategy_valid_ = false;
   mutable bool average_strategy_valid_ = false;
-  std::vector<float> expected_values_;
+  std::vector<double> expected_values_;
 
   // Deleted copy/move operations.
   DiscountedCfrTrainable(const DiscountedCfrTrainable&) = delete;

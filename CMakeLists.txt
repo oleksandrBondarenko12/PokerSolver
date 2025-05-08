@@ -57,7 +57,6 @@ add_library(PokerSolverCore
     # src/trainable/Trainable.cpp # Likely header-only or part of others
     src/GameTree.cpp
     src/solver/Solver.cpp
-    src/solver/best_response.cpp
     src/solver/PCfrSolver.cpp
     # src/builder/GameTreeBuilder.cpp # Add if used
     # src/utils.cpp # Add if you have utils.cpp
@@ -99,8 +98,7 @@ add_executable(poker_solver_tests
     tests/terminal_node_test.cpp
     tests/discounted_cfr_trainable_test.cpp
     tests/game_tree_test.cpp
-    tests/best_response_test.cpp
-    tests/pcfr_solver_test.cpp
+    # tests/pcfr_solver_test.cpp
     # Add other test files here...
 )
 

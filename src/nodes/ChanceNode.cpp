@@ -16,12 +16,10 @@ ChanceNode::ChanceNode(core::GameRound round,
                        double pot,
                        std::weak_ptr<GameTreeNode> parent,
                        std::vector<core::Card> dealt_cards, // Matches header
-                       std::shared_ptr<GameTreeNode> child_node, // Matches header
-                       bool is_donk_opportunity)
+                       std::shared_ptr<GameTreeNode> child_node)
     : core::GameTreeNode(round, pot, std::move(parent)),
       dealt_cards_(std::move(dealt_cards)), // Store the dealt cards
-      child_node_(std::move(child_node)),   // Store the child node
-      is_donk_opportunity_(is_donk_opportunity) {
+      child_node_(std::move(child_node)) {
 
     // Optional validation - allow empty dealt_cards for flexibility?
     // if (dealt_cards_.empty()) {

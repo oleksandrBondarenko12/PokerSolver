@@ -29,8 +29,7 @@ class ChanceNode : public core::GameTreeNode {
              double pot,
              std::weak_ptr<GameTreeNode> parent,
              std::vector<core::Card> dealt_cards, // Store the dealt cards
-             std::shared_ptr<GameTreeNode> child_node, // Can be null
-             bool is_donk_opportunity = false);
+             std::shared_ptr<GameTreeNode> child_node);
 
   // Virtual destructor.
   ~ChanceNode() override = default;
@@ -48,9 +47,6 @@ class ChanceNode : public core::GameTreeNode {
   // Returns the single child node that follows this chance event.
   std::shared_ptr<GameTreeNode> GetChild() const { return child_node_; }
 
-  // Returns true if the state following this chance node allows for a donk bet.
-  bool IsDonkOpportunity() const { return is_donk_opportunity_; }
-
   // --- Modifiers (Used during tree construction/linking) ---
 
   // Sets the child node (primarily used if constructed with null child initially).
@@ -63,9 +59,6 @@ class ChanceNode : public core::GameTreeNode {
 
   // The single child node following this chance event.
   std::shared_ptr<GameTreeNode> child_node_;
-
-  // Indicates if the next action node (if any) is a donk spot.
-  bool is_donk_opportunity_;
 
   // Deleted copy/move operations.
   ChanceNode(const ChanceNode&) = delete;

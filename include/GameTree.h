@@ -67,13 +67,12 @@ class GameTree {
   std::vector<double> GetPossibleBets(
         const config::Rule& rule,
         size_t player_index,
-        size_t opponent_index,
         double current_player_commit,
         double opponent_commit,
         double effective_stack,
         const core::GameAction& last_action,
-        int raises_this_street
-        double pot_before_action) const;
+        double pot_before_action,
+        core::GameRound round) const;
 
   static double RoundBet(double amount, double min_bet_increment);
 

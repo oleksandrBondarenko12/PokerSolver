@@ -113,7 +113,7 @@ void GameTree::BuildBranch(std::shared_ptr<core::GameTreeNode> current_node,
                  // This should not happen if built dynamically via the Rule constructor
                  throw std::logic_error("Build rule not set in GameTree for ChanceNode building.");
              }
-            BuildChanceNode(chance_node, build_rule_.value()); // Use stored original rule
+            BuildChanceNode(chance_node, current_rule); // Use stored original rule
             break;
         }
         case core::GameTreeNodeType::kShowdown: // Terminal state
@@ -139,7 +139,15 @@ void GameTree::BuildChanceNode(std::shared_ptr<nodes::ChanceNode> node,
     // Payoffs in Showdown/Terminal nodes should handle final state correctly.
     double ip_commit = rule.GetInitialCommitment(0);
     double oop_commit = rule.GetInitialCommitment(1);
-    bool effectively_all_in = (ip_commit >= stack - 1e-9 && oop_commit >= stack - 1e-9);
+    constexpr double eps = 1e-9;
+    // if you still need the “both-players” check:
+    const double ip_remaining  = stack - ip_commit;
+    const double oop_remaining = stack - oop_commit;
+
+    const bool ip_all_in  = ip_remaining  <= stack * (1.0 - rule.GetAllInThresholdRatio()) + eps;
+    const bool oop_all_in = oop_remaining <= stack * (1.0 - rule.GetAllInThresholdRatio()) + eps;
+
+    const bool effectively_all_in = ip_all_in && oop_all_in;
 
     std::shared_ptr<core::GameTreeNode> next_node;
 
@@ -155,9 +163,9 @@ void GameTree::BuildChanceNode(std::shared_ptr<nodes::ChanceNode> node,
              core::GameRound round_after_chance = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(round_before_chance) + 1);
               next_node = std::make_shared<nodes::ChanceNode>(
                   round_after_chance, current_pot, node,
-                  std::vector<core::Card>{}, nullptr, false // Dealt cards handled by solver
+                  std::vector<core::Card>{}, nullptr // Dealt cards handled by solver
               );
-         }
+        }
     } else {
         // Not all-in, next state is an ActionNode for the next player (usually OOP=1)
         core::GameRound round_after_chance = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(round_before_chance) + 1);
@@ -185,8 +193,7 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
                                config::Rule current_rule_state, // Takes Rule by value
                                const core::GameAction& last_action,
                                int actions_this_round,
-                               int raises_this_street
-                               int pot_before_action) {
+                               int raises_this_street) {
     if (!node) return;
 
     size_t current_player = node->GetPlayerIndex();
@@ -211,11 +218,22 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
     std::vector<std::shared_ptr<core::GameTreeNode>> children_nodes;
 
     // Determine possible actions based on game state
-    bool can_check = (std::abs(current_player_commit - opponent_commit) < 1e-9);
-    bool can_call = (current_player_commit < opponent_commit);
-    bool opponent_is_all_in = (opponent_commit >= stack - 1e-9);
-    bool can_fold = can_call; // Can fold if facing bet/raise
-    bool can_bet_or_raise = !opponent_is_all_in && (raises_this_street < current_rule_state.GetRaiseLimitPerStreet());
+    constexpr double eps = 1e-9;
+
+    bool can_check = std::abs(current_player_commit - opponent_commit) < eps;
+    bool can_call  = (opponent_commit - current_player_commit) > eps;
+    
+    // AFTER
+        double opp_remaining = stack - opponent_commit;
+        bool   opponent_is_all_in  =
+            opp_remaining <= stack * (1.0 - current_rule_state.GetAllInThresholdRatio()) + 1e-9;
+    
+    bool can_fold = can_call;
+    
+    bool can_bet_or_raise =
+            !opponent_is_all_in &&
+            (player_stack_remaining > current_rule_state.GetBigBlind() - eps) &&
+            (raises_this_street < current_rule_state.GetRaiseLimitPerStreet());
 
     // 1. Check Action
     if (can_check) {
@@ -230,7 +248,7 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
              } else {
                  core::GameRound next_round = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
                  next_node = std::make_shared<nodes::ChanceNode>(
-                      next_round, pot, node, std::vector<core::Card>{}, nullptr, false);
+                      next_round, pot, node, std::vector<core::Card>{}, nullptr);
              }
         } else { // First check -> opponent's turn
              next_node = std::make_shared<nodes::ActionNode>(
@@ -257,9 +275,8 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
                                       : std::vector<double>{opponent_commit, next_player_commit});
         } else {
             core::GameRound next_round = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
-            bool donk_opportunity = (current_player == 1 && opponent_commit > current_rule_state.GetBigBlind()); // Donk if OOP calls IP bet/raise > BB
             next_node = std::make_shared<nodes::ChanceNode>(
-                 next_round, next_pot, node, std::vector<core::Card>{}, nullptr, donk_opportunity);
+                 next_round, next_pot, node, std::vector<core::Card>{}, nullptr);
         }
         children_nodes.push_back(next_node);
         config::Rule next_rule = current_rule_state; // Copy rule
@@ -270,65 +287,92 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
     }
 
     // 3. Fold Action
+    // --- Fold Action -----------------------------------------------------------
     if (can_fold) {
-        core::GameAction fold_action(core::PokerAction::kFold);
+        const core::GameAction fold_action(core::PokerAction::kFold);
         possible_node_actions.push_back(fold_action);
-        std::vector<double> payoffs(2);
-        if (current_player == 0) { // IP folds
-            payoffs[0] = -current_player_commit; payoffs[1] = current_player_commit;
-        } else { // OOP folds
-            payoffs[0] = opponent_commit; payoffs[1] = -opponent_commit;
-        }
+
+        std::vector<double> payoffs(2, 0.0);
+
+        // folder loses everything already in the pot
+        payoffs[current_player] = -current_player_commit;
+
+        // winner gains exactly what folder just lost
+        payoffs[opponent_player] =  current_player_commit;
+
         auto next_node = std::make_shared<nodes::TerminalNode>(
-            payoffs, current_round, pot, node); // Pot doesn't change on fold
+            payoffs, current_round, pot, node);
+
         children_nodes.push_back(next_node);
-        BuildBranch(next_node, current_rule_state, fold_action, actions_this_round + 1, raises_this_street); // Recurse (ends immediately)
+        // no BuildBranch : terminal node ends recursion
     }
 
     // 4. Bet / Raise Actions
+    // 4. Bet / Raise actions
     if (can_bet_or_raise) {
-        bool is_facing_action = opponent_commit > current_player_commit;
-        core::PokerAction action_type = is_facing_action ? core::PokerAction::kRaise : core::PokerAction::kBet;
+        bool   is_facing_action = opponent_commit > current_player_commit + 1e-9;
+        bool   is_raise         = is_facing_action;               // clarity
+        auto   action_type      = is_raise ? core::PokerAction::kRaise
+                                        : core::PokerAction::kBet;
+
+        // ---- get candidate sizes ------------------------------------------------
         std::vector<double> bet_amounts_to_add = GetPossibleBets(
-            current_rule_state, current_player, opponent_player, current_player_commit,
-            opponent_commit, stack, last_action, raises_this_street,
-            node->GetPot()); // Pass pot before action
+            current_rule_state,
+            current_player,
+            /* current_player_commit */ current_player_commit,
+            /* opponent_commit       */ opponent_commit,
+            /* effective_stack       */ stack,
+            /* last action           */ last_action,
+            /* pot_before_action     */ node->GetPot(),
+            /* street                */ current_round);
+
+        double call_amount = opponent_commit - current_player_commit;
 
         for (double amount_to_add : bet_amounts_to_add) {
-            if (amount_to_add <= 1e-9 || amount_to_add > player_stack_remaining + 1e-9) continue;
-            double actual_amount_to_add = std::min(amount_to_add, player_stack_remaining);
-             // *** Correct typo: use current_rule_state ***
-            if (action_type == core::PokerAction::kBet && actual_amount_to_add < current_rule_state.GetBigBlind() - 1e-9 && actual_amount_to_add < player_stack_remaining - 1e-9) {
-                 // Optional: Skip bets smaller than BB unless all-in
-                 // continue;
-            }
-             if (action_type == core::PokerAction::kRaise) {
-                 double call_amount = opponent_commit - current_player_commit;
-                 double raise_size = actual_amount_to_add - call_amount;
-                 // Min raise size check (must at least double the previous bet/raise)
-                 // This requires knowing the *previous* raise amount - complex to track here.
-                 // Simplified check: raise size must be >= BB
-                 if (raise_size < current_rule_state.GetBigBlind() - 1e-9 && actual_amount_to_add < player_stack_remaining - 1e-9) {
-                     continue; // Skip invalid raise size (unless all-in)
-                 }
-             }
+            if (amount_to_add <= 1e-9 ||
+                amount_to_add > player_stack_remaining + 1e-9)
+                continue;                                           // out of range
 
-            core::GameAction bet_node_action(action_type, actual_amount_to_add);
-            possible_node_actions.push_back(bet_node_action);
-            double next_pot = pot + actual_amount_to_add;
-            double next_player_commit = current_player_commit + actual_amount_to_add;
+            double actual_add   = std::min(amount_to_add, player_stack_remaining);
+            double raise_top_up = actual_add - call_amount;         // 0 if bet
+
+            // --- min-bet / min-raise legality checks ----------------------------
+            if (!is_raise) {                                        // opening bet
+                if (actual_add < current_rule_state.GetBigBlind() - 1e-9 &&
+                    actual_add < player_stack_remaining  - 1e-9)
+                    continue;                                       // too small
+            } else {                                                // raise
+                if (raise_top_up < current_rule_state.GetBigBlind() - 1e-9 &&
+                    actual_add    < player_stack_remaining  - 1e-9)
+                    continue;                                       // too small
+            }
+
+            // store pure bet or raise amount (not call+raise)
+            double action_size = is_raise ? raise_top_up : actual_add;
+            core::GameAction bet_action(action_type, action_size);
+            possible_node_actions.push_back(bet_action);
+
+            // --- build child node ----------------------------------------------
+            double next_pot            = pot + actual_add;
+            double next_player_commit  = current_player_commit + actual_add;
+
             auto next_node = std::make_shared<nodes::ActionNode>(
-                opponent_player, current_round, next_pot, node, 1);
+                opponent_player, current_round, next_pot, node, /*num deals*/ 1);
             children_nodes.push_back(next_node);
-            config::Rule next_rule = current_rule_state; // Copy rule
-            // *** Use Setters ***
-            if (current_player == 0) next_rule.SetInitialIpCommit(next_player_commit);
-            else next_rule.SetInitialOopCommit(next_player_commit);
-            BuildBranch(next_node, next_rule, bet_node_action, actions_this_round + 1,
-                        raises_this_street + (action_type == core::PokerAction::kRaise ? 1 : 0));
+
+            config::Rule next_rule = current_rule_state;            // copy
+            if (current_player == 0)
+                next_rule.SetInitialIpCommit(next_player_commit);
+            else
+                next_rule.SetInitialOopCommit(next_player_commit);
+
+            BuildBranch(next_node,
+                        next_rule,
+                        bet_action,
+                        actions_this_round + 1,
+                        raises_this_street + 1);                    // bet counts, too
         }
     }
-
     node->SetActionsAndChildren(possible_node_actions, children_nodes);
 }
 
@@ -338,16 +382,13 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
 std::vector<double> GameTree::GetPossibleBets(
     const config::Rule& rule,
     size_t player_index,
-    size_t /*opponent_index*/, // opponent_index is unused
     double current_player_commit,
     double opponent_commit,
     double effective_stack,
     const core::GameAction& last_action,
-    int /*raises_this_street*/, // raises_this_street is unused in standard bet sizing logic
-    double pot_before_action) const 
+    double pot_before_action,
+    core::GameRound round) const 
 { // Pot size *before* this player acts
-
-    core::GameRound round = node->GetRound(); // Get round from the node, not the initial rule
 
     // Preflop betting logic is typically different (based on blinds/limps/raises)
     // and often hardcoded or handled by a separate configuration.
@@ -395,7 +436,7 @@ std::vector<double> GameTree::GetPossibleBets(
 
         if (is_raise) {
             // Calculate raise size based on pot *after* calling
-            double pot_after_call = pot_before_action + call_amount; // Pot + caller's call + opponent's bet/raise being called
+            double pot_after_call = pot_before_action + call_amount; // Pot already includes opponent's bet; add hero's call once
             calculated_size = ratio * pot_after_call; // This is the desired raise amount *on top*
         } else { // Bet or Donk
             // Calculate bet size based on pot *before* betting

@@ -47,8 +47,7 @@ class ChanceNodeTest : public ::testing::Test {
                round_, pot_,
                std::weak_ptr<GameTreeNode>(parent_node_), // Create weak_ptr from shared_ptr
                std::vector<Card>{}, // Empty dealt cards for setup
-               nullptr, // Start with null child
-               is_donk_
+               nullptr // Start with null child
            );
 
        } catch (const std::exception& e) {
@@ -75,8 +74,7 @@ TEST_F(ChanceNodeTest, ConstructorAndGetters) {
   EXPECT_EQ(chance_node_->GetPot(), pot_);
   EXPECT_EQ(chance_node_->GetNodeType(), GameTreeNodeType::kChance);
   EXPECT_TRUE(chance_node_->GetChild() == nullptr); // Child is initially null
-  EXPECT_TRUE(chance_node_->GetDealtCards().empty()); // Dealt cards initially empty
-  EXPECT_EQ(chance_node_->IsDonkOpportunity(), is_donk_);
+  EXPECT_TRUE(chance_node_->GetDealtCards().empty()); // Dealt cards initially empty);
 
   // Check parent was set correctly
   std::shared_ptr<GameTreeNode> parent_shared = chance_node_->GetParent(); // Returns shared_ptr
@@ -108,7 +106,6 @@ TEST_F(ChanceNodeTest, SetChild) {
 TEST(ChanceNodeConstructorTest, ConstructThenSetChild) { // Renamed Test
     GameRound round = GameRound::kTurn;
     double pot = 100.0;
-    bool is_donk = false;
     auto parent = std::make_shared<ActionNode>(0, GameRound::kFlop, pot, std::weak_ptr<GameTreeNode>(), 1);
     auto child = std::make_shared<ActionNode>(1, GameRound::kTurn, pot, std::weak_ptr<GameTreeNode>(), 1);
 
@@ -128,8 +125,7 @@ TEST(ChanceNodeConstructorTest, ConstructThenSetChild) { // Renamed Test
             pot,            // Argument 2: Pot
             std::weak_ptr<GameTreeNode>(parent), // Argument 3: Parent weak_ptr
             dealt_cards,    // Argument 4: Dealt cards vector
-            nullptr,        // Argument 5: Child is initially null
-            is_donk         // Argument 6: Donk flag
+            nullptr
         );
     } catch (const std::exception& e) {
          FAIL() << "ChanceNode constructor threw exception: " << e.what();
@@ -151,5 +147,4 @@ TEST(ChanceNodeConstructorTest, ConstructThenSetChild) { // Renamed Test
     std::shared_ptr<GameTreeNode> childs_parent_shared = child->GetParent();
     ASSERT_NE(childs_parent_shared, nullptr);
     EXPECT_EQ(childs_parent_shared, chance_node);
-    EXPECT_EQ(chance_node->IsDonkOpportunity(), is_donk);
 }
