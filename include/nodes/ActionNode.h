@@ -87,6 +87,9 @@ class ActionNode : public core::GameTreeNode {
   // Gets the Trainable object without creating it if it doesn't exist.
   std::shared_ptr<solver::Trainable> GetTrainableIfExists(size_t deal_index) const;
 
+  const std::vector<core::PrivateCards>* GetPlayerRangeRaw() const {
+    return player_range_; // Defined inline HERE
+  }
 
  private:
   size_t player_index_; // Player whose turn it is (0=IP, 1=OOP)

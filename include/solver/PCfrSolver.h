@@ -35,11 +35,16 @@ class PCfrSolver : public Solver {
 public:
     // Configuration for the solver
     struct Config {
-        int iteration_limit = 1000;
-        int num_threads = 1; // Default to single-threaded
+        int iteration_limit; // Remove default initializer
+        int num_threads;     // Remove default initializer
+
         // bool use_isomorphism = false; // Future option
         // Add trainer type enum if needed (e.g., CFR+, DCFR)
         // Add precision enum if needed
+        Config() :
+            iteration_limit(1000),
+            num_threads(1)
+        {}
     };
 
     // Constructor
@@ -48,7 +53,7 @@ public:
                std::shared_ptr<ranges::PrivateCardsManager> pcm,
                std::shared_ptr<ranges::RiverRangeManager> rrm,
                const config::Rule& rule,
-               Config solver_config = {}); // Use default config if none provided
+               Config solver_config = Config()); // Use default config if none provided
 
     // --- Solver Interface Implementation ---
     void Train() override;

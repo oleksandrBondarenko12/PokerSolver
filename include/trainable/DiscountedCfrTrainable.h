@@ -30,7 +30,7 @@ class DiscountedCfrTrainable : public Trainable {
   // Constructor.
   DiscountedCfrTrainable(
     const std::vector<core::PrivateCards>* player_range, // Pass range pointer
-    const nodes::ActionNode& action_node); 
+    const nodes::ActionNode& action_node);
 
   // Virtual destructor.
   ~DiscountedCfrTrainable() override = default;
@@ -40,14 +40,14 @@ class DiscountedCfrTrainable : public Trainable {
   const std::vector<double>& GetCurrentStrategy() const override;
   const std::vector<double>& GetAverageStrategy() const override;
 
-  // *** CORRECTED SIGNATURE ***
-  void UpdateRegrets(const std::vector<double>& regrets, int iteration,
+  // Signature matches Trainable.h
+  void UpdateRegrets(const std::vector<double>& weighted_regrets, int iteration,
                      double reach_prob_opponent_chance_scalar) override;
 
-  // *** ADDED & RENAMED METHOD with CORRECTED SIGNATURE ***
+  // Signature matches Trainable.h
   void AccumulateAverageStrategy(const std::vector<double>& current_strategy,
                                  int iteration,
-                                 double reach_prob_player_chance_scalar) override;
+                                 const std::vector<double>& reach_probs_player_chance_vector) override; // VECTOR
 
   void SetEv(const std::vector<double>& evs) override;
 
