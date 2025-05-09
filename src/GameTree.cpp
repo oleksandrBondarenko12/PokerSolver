@@ -126,252 +126,365 @@ void GameTree::BuildBranch(std::shared_ptr<core::GameTreeNode> current_node,
 }
 
 // Builds the structure following a ChanceNode
+// src/GameTree.cpp
+
+// Builds the structure following a ChanceNode
+// src/GameTree.cpp
+
+// Builds the structure following a ChanceNode
 void GameTree::BuildChanceNode(std::shared_ptr<nodes::ChanceNode> node,
-                               const config::Rule& rule) { // Takes original build rule
+                               const config::Rule& rule_at_chance_creation) { // Rule state when this ChanceNode was decided
     if (!node) return;
 
-    core::GameRound round_before_chance = node->GetRound();
+    // round_completed_by_this_chance_deal is the round that this ChanceNode's dealt cards complete.
+    // e.g., if this node deals the Turn card, this variable will be GameRound::kTurn.
+    // The child ActionNode will then be for the Turn betting round.
+    core::GameRound round_completed_by_this_chance_deal = node->GetRound();
     double current_pot = node->GetPot();
-    double stack = rule.GetInitialEffectiveStack();
-    // Get commitments *at the point the chance node was created*
-    // We use the original rule's commitments for the all-in check, as the
-    // exact commitments depend on the path taken, which isn't tracked here easily.
-    // Payoffs in Showdown/Terminal nodes should handle final state correctly.
-    double ip_commit = rule.GetInitialCommitment(0);
-    double oop_commit = rule.GetInitialCommitment(1);
+    double stack = rule_at_chance_creation.GetInitialEffectiveStack(); // Use stack from the rule state
+
+    // Determine if players were all-in *before* this specific chance event.
+    // Use the commitments from the rule_at_chance_creation, which should reflect the state
+    // just before this chance node was placed in the tree.
+    double ip_commit = rule_at_chance_creation.GetInitialCommitment(0);
+    double oop_commit = rule_at_chance_creation.GetInitialCommitment(1);
     constexpr double eps = 1e-9;
-    // if you still need the “both-players” check:
-    const double ip_remaining  = stack - ip_commit;
-    const double oop_remaining = stack - oop_commit;
 
-    const bool ip_all_in  = ip_remaining  <= stack * (1.0 - rule.GetAllInThresholdRatio()) + eps;
-    const bool oop_all_in = oop_remaining <= stack * (1.0 - rule.GetAllInThresholdRatio()) + eps;
+    const bool ip_is_all_in  = (stack - ip_commit) <= eps;
+    const bool oop_is_all_in = (stack - oop_commit) <= eps;
+    const bool effectively_all_in_runout = ip_is_all_in && oop_is_all_in; // Both players are all-in, just dealing cards
 
-    const bool effectively_all_in = ip_all_in && oop_all_in;
+    // --- DEBUG PRINT (Entry) ---
+    std::cout << "[GTB Debug BuildChanceNode] ENTER. ChanceNode deals for/completes Round: "
+              << core::GameTreeNode::GameRoundToString(round_completed_by_this_chance_deal)
+              << ", Pot: " << current_pot
+              << ", AllInRunout: " << effectively_all_in_runout
+              << " (IP Commit: " << ip_commit << ", OOP Commit: " << oop_commit << ", Stack: " << stack << ")"
+              << std::endl;
+    if (node->GetParent()) {
+        std::cout << "    Parent Node Type: " << static_cast<int>(node->GetParent()->GetNodeType())
+                  << ", Parent Round: " << core::GameTreeNode::GameRoundToString(node->GetParent()->GetRound()) << std::endl;
+    }
+    // --- END DEBUG PRINT ---
 
-    std::shared_ptr<core::GameTreeNode> next_node;
+    std::shared_ptr<core::GameTreeNode> child_node_after_this_deal;
 
-    if (effectively_all_in) {
-         if (round_before_chance == core::GameRound::kRiver) {
-              // Should have ended in Showdown in the parent ActionNode's logic
-              std::cerr << "[WARNING] Reached ChanceNode on River when already all-in." << std::endl;
-              next_node = std::make_shared<nodes::ShowdownNode>(
-                 core::GameRound::kRiver, current_pot, node, 2,
-                 std::vector<double>{stack, stack}); // Both committed full stack
-         } else {
-             // Not river, but all-in -> skip to next chance node until river
-             core::GameRound round_after_chance = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(round_before_chance) + 1);
-              next_node = std::make_shared<nodes::ChanceNode>(
-                  round_after_chance, current_pot, node,
-                  std::vector<core::Card>{}, nullptr // Dealt cards handled by solver
-              );
-        }
+    if (round_completed_by_this_chance_deal == core::GameRound::kRiver) {
+        // This ChanceNode dealt the River card. Next is always Showdown (betting is over or was already all-in).
+        std::cout << "    [GTB Debug BuildChanceNode] This ChanceNode dealt River -> Creating ShowdownNode." << std::endl;
+        child_node_after_this_deal = std::make_shared<nodes::ShowdownNode>(
+            core::GameRound::kRiver, current_pot, node, 2,
+            std::vector<double>{ip_commit, oop_commit}); // Commitments leading to this showdown
+    } else if (effectively_all_in_runout) {
+        // All-in, and this ChanceNode just dealt Flop or Turn. Need another ChanceNode for the NEXT street's deal.
+        core::GameRound round_for_next_deal = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(round_completed_by_this_chance_deal) + 1);
+        std::cout << "    [GTB Debug BuildChanceNode] AllInRunout & current deal is "
+                  << core::GameTreeNode::GameRoundToString(round_completed_by_this_chance_deal)
+                  << " -> Creating next ChanceNode for "
+                  << core::GameTreeNode::GameRoundToString(round_for_next_deal) << std::endl;
+        child_node_after_this_deal = std::make_shared<nodes::ChanceNode>(
+             round_for_next_deal, current_pot, node,
+             std::vector<core::Card>{}, nullptr
+         );
     } else {
-        // Not all-in, next state is an ActionNode for the next player (usually OOP=1)
-        core::GameRound round_after_chance = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(round_before_chance) + 1);
-        if (core::GameTreeNode::GameRoundToInt(round_after_chance) > core::GameTreeNode::GameRoundToInt(core::GameRound::kRiver)) {
-             // Finished river betting round, not all-in -> Showdown
-             next_node = std::make_shared<nodes::ShowdownNode>(
-                 core::GameRound::kRiver, current_pot, node, 2,
-                 std::vector<double>{ip_commit, oop_commit}); // Use commitments entering chance node
-        } else {
-            size_t next_player = 1; // OOP acts first postflop
-            next_node = std::make_shared<nodes::ActionNode>(
-                next_player, round_after_chance, current_pot, node, 1);
-        }
+        // Not an all-in runout, and not the river deal. Next is an ActionNode for betting on the current street.
+        // The round for this ActionNode is the street that was just completed by this ChanceNode's deal.
+        core::GameRound round_for_action_node = round_completed_by_this_chance_deal;
+        size_t next_player_to_act = 1; // OOP (Player 1) typically acts first post-flop.
+                                     // TODO: Refine for preflop if this builder handles it.
+
+        std::cout << "    [GTB Debug BuildChanceNode] Not AllInRunout, not River deal -> Creating ActionNode for P" << next_player_to_act
+                  << " on round " << core::GameTreeNode::GameRoundToString(round_for_action_node) << std::endl;
+        child_node_after_this_deal = std::make_shared<nodes::ActionNode>(
+            next_player_to_act, round_for_action_node, current_pot, node, 1);
     }
 
-    node->SetChild(next_node);
-    // Pass the original build rule down; commitments reset implicitly by starting new round/street
-    BuildBranch(next_node, rule, core::GameAction(core::PokerAction::kRoundBegin), 0, 0);
-}
+    node->SetChild(child_node_after_this_deal);
+    // When recursing from a ChanceNode, the 'rule_at_chance_creation' is passed along.
+    // The actions_this_round and raises_this_street are reset because a new street/betting sequence begins.
+    BuildBranch(child_node_after_this_deal, rule_at_chance_creation, core::GameAction(core::PokerAction::kRoundBegin), 0, 0);
+}}
 
 
 // Builds the structure for an ActionNode
 // Takes Rule by value as it modifies it for recursive calls
-void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
-                               config::Rule current_rule_state, // Takes Rule by value
-                               const core::GameAction& last_action,
-                               int actions_this_round,
-                               int raises_this_street) {
+// In src/GameTree.cpp
+
+// Builds the structure for an ActionNode
+// Takes Rule by value as it modifies it for recursive calls
+void tree::GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
+    config::Rule current_rule_state, // Takes Rule by value
+    const core::GameAction& last_action,
+    int actions_this_round,
+    int raises_this_street) {
     if (!node) return;
 
     size_t current_player = node->GetPlayerIndex();
     size_t opponent_player = 1 - current_player;
-    // Get commitments *at this node* based on the rule state passed down
     double current_player_commit = current_rule_state.GetInitialCommitment(current_player);
     double opponent_commit = current_rule_state.GetInitialCommitment(opponent_player);
-    double pot = node->GetPot(); // Pot *before* this action
-    double stack = current_rule_state.GetInitialEffectiveStack(); // Use the original stack size
-    // Effective stack remaining for the *current* player
+    double pot_before_action = node->GetPot(); // Pot *before* this player acts
+    double stack = current_rule_state.GetInitialEffectiveStack();
     double player_stack_remaining = stack - current_player_commit;
     core::GameRound current_round = node->GetRound();
 
-    if (player_stack_remaining <= 1e-9) {
-         std::cerr << "[WARNING] ActionNode created for player already all-in. Commit: "
-                   << current_player_commit << ", Stack: " << stack << std::endl;
-         node->SetActionsAndChildren({}, {}); // Set empty actions/children
+    // --- DEBUG PRINT (Entry) ---
+    std::cout << "[GTB Debug BuildActionNode] ENTER. Player: " << current_player
+    << ", Round: " << core::GameTreeNode::GameRoundToString(current_round)
+    << ", Pot: " << pot_before_action
+    << ", P" << current_player << " Commit: " << current_player_commit
+    << ", P" << opponent_player << " Commit: " << opponent_commit
+    << ", P" << current_player << " StackRem: " << player_stack_remaining
+    << ", ActionsThisRound: " << actions_this_round
+    << ", RaisesThisStreet: " << raises_this_street << std::endl;
+    // --- END DEBUG PRINT ---
+
+
+    if (player_stack_remaining <= 1e-9 && opponent_commit > current_player_commit) { // Player is all-in but opponent made a bigger bet
+        std::cerr << "[WARNING] ActionNode for player " << current_player
+        << " who is all-in but faces a larger bet. This path should ideally lead to Showdown/Terminal from parent." << std::endl;
+        // This situation might occur if a player goes all-in with a very small amount,
+        // and the opponent has already committed more or can still act.
+        // The tree should have likely ended or gone to a specific all-in resolution.
+        // For robustness, we might create a terminal node here if P must fold (cannot call).
+        // Or, if they can "call" with their remaining 0 stack, it's a showdown.
+        // For now, let's assume the prior logic in parent nodes handles this.
+        // If not, this node should probably be a Showdown or Terminal.
+        // To prevent infinite loops or errors, we stop further branching from here.
+        node->SetActionsAndChildren({}, {});
+        return;
+    } else if (player_stack_remaining <= 1e-9) { // Player is all-in and no decision to make
+        node->SetActionsAndChildren({}, {}); // No actions if all-in
         return;
     }
+
 
     std::vector<core::GameAction> possible_node_actions;
     std::vector<std::shared_ptr<core::GameTreeNode>> children_nodes;
 
-    // Determine possible actions based on game state
     constexpr double eps = 1e-9;
 
     bool can_check = std::abs(current_player_commit - opponent_commit) < eps;
     bool can_call  = (opponent_commit - current_player_commit) > eps;
-    
-    // AFTER
-        double opp_remaining = stack - opponent_commit;
-        bool   opponent_is_all_in  =
-            opp_remaining <= stack * (1.0 - current_rule_state.GetAllInThresholdRatio()) + 1e-9;
-    
-    bool can_fold = can_call;
-    
-    bool can_bet_or_raise =
-            !opponent_is_all_in &&
-            (player_stack_remaining > current_rule_state.GetBigBlind() - eps) &&
-            (raises_this_street < current_rule_state.GetRaiseLimitPerStreet());
 
-    // 1. Check Action
+    double opp_remaining_stack = stack - opponent_commit;
+    bool opponent_is_all_in = opp_remaining_stack <= eps; // Simpler all-in check
+
+
+    bool can_fold = can_call; // Can only fold if facing a bet/raise that requires a call
+
+    bool can_bet_or_raise = !opponent_is_all_in &&
+    (player_stack_remaining > eps) && // Must have something to bet/raise
+    (raises_this_street < current_rule_state.GetRaiseLimitPerStreet());
+
+    // --- 1. Check Action ---
     if (can_check) {
         core::GameAction check_action(core::PokerAction::kCheck);
         possible_node_actions.push_back(check_action);
-        std::shared_ptr<core::GameTreeNode> next_node;
-        if (actions_this_round > 0) { // Check completes the round
-             if (current_round == core::GameRound::kRiver) {
-                 next_node = std::make_shared<nodes::ShowdownNode>(
-                     current_round, pot, node, 2,
-                     std::vector<double>{current_player_commit, opponent_commit});
-             } else {
-                 core::GameRound next_round = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
-                 next_node = std::make_shared<nodes::ChanceNode>(
-                      next_round, pot, node, std::vector<core::Card>{}, nullptr);
-             }
-        } else { // First check -> opponent's turn
-             next_node = std::make_shared<nodes::ActionNode>(
-                 opponent_player, current_round, pot, node, 1);
-        }
-        children_nodes.push_back(next_node);
-        // Pass current rule state (no commit change)
-        BuildBranch(next_node, current_rule_state, check_action, actions_this_round + 1, raises_this_street);
-    }
+        std::shared_ptr<core::GameTreeNode> child_node_after_check;
 
-    // 2. Call Action
-    if (can_call) {
-        core::GameAction call_action(core::PokerAction::kCall);
-        possible_node_actions.push_back(call_action);
-        double call_amount = std::min(opponent_commit - current_player_commit, player_stack_remaining);
-        double next_pot = pot + call_amount;
-        double next_player_commit = current_player_commit + call_amount;
-        std::shared_ptr<core::GameTreeNode> next_node;
-        bool now_all_in = (next_player_commit >= stack - 1e-9) || opponent_is_all_in;
-        if (current_round == core::GameRound::kRiver || now_all_in) {
-            next_node = std::make_shared<nodes::ShowdownNode>(
-                core::GameRound::kRiver, next_pot, node, 2,
-                (current_player == 0) ? std::vector<double>{next_player_commit, opponent_commit}
-                                      : std::vector<double>{opponent_commit, next_player_commit});
+        bool round_ends = (actions_this_round > 0); // If P1 checks, P0 acts (actions_this_round=0). If P0 then checks, round ends (actions_this_round=1).
+
+        if (round_ends) {
+            if (current_round == core::GameRound::kRiver) {
+            std::vector<double> final_commitments_for_showdown = {
+                current_rule_state.GetInitialCommitment(0), // IP commit
+                current_rule_state.GetInitialCommitment(1)  // OOP commit
+            };
+            child_node_after_check = std::make_shared<nodes::ShowdownNode>(
+            current_round, pot_before_action, node, 2,
+            final_commitments_for_showdown// Pass final commitments
+            );
+            std::cout << "    [GTB Debug BuildActionNode] Check (ends round) on River -> Created ShowdownNode. Pot: " << pot_before_action << std::endl;
         } else {
-            core::GameRound next_round = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
-            next_node = std::make_shared<nodes::ChanceNode>(
-                 next_round, next_pot, node, std::vector<core::Card>{}, nullptr);
+            core::GameRound round_for_next_deal = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
+            child_node_after_check = std::make_shared<nodes::ChanceNode>(
+            round_for_next_deal, pot_before_action, node, std::vector<core::Card>{}, nullptr);
+            std::cout << "    [GTB Debug BuildActionNode] Check (ends round) on " << core::GameTreeNode::GameRoundToString(current_round)
+            << " -> Created ChanceNode for " << core::GameTreeNode::GameRoundToString(round_for_next_deal)
+            << ". Pot: " << pot_before_action << std::endl;
         }
-        children_nodes.push_back(next_node);
-        config::Rule next_rule = current_rule_state; // Copy rule
-        // Use setters to modify the copy
-        if (current_player == 0) next_rule.SetInitialIpCommit(next_player_commit);
-        else next_rule.SetInitialOopCommit(next_player_commit);
-        BuildBranch(next_node, next_rule, call_action, actions_this_round + 1, raises_this_street);
+    } else { // First check in the round -> opponent's turn on the same street
+            child_node_after_check = std::make_shared<nodes::ActionNode>(
+            opponent_player, current_round, pot_before_action, node, 1);
+            std::cout << "    [GTB Debug BuildActionNode] Check (first action) -> Created ActionNode for P"
+            << opponent_player << " on " << core::GameTreeNode::GameRoundToString(current_round)
+            << ". Pot: " << pot_before_action << std::endl;
+        }
+    children_nodes.push_back(child_node_after_check);
+    BuildBranch(child_node_after_check, current_rule_state, check_action, actions_this_round + 1, raises_this_street);
     }
 
-    // 3. Fold Action
-    // --- Fold Action -----------------------------------------------------------
-    if (can_fold) {
-        const core::GameAction fold_action(core::PokerAction::kFold);
-        possible_node_actions.push_back(fold_action);
+    // --- 2. Call Action ---
+    if (can_call) {
+        core::GameAction call_action(core::PokerAction::kCall); // Amount is implicit
+        possible_node_actions.push_back(call_action);
 
-        std::vector<double> payoffs(2, 0.0);
+        double amount_to_call = opponent_commit - current_player_commit;
+        double actual_call_amount = std::min(amount_to_call, player_stack_remaining); // Cannot call more than stack
 
-        // folder loses everything already in the pot
-        payoffs[current_player] = -current_player_commit;
+        double next_pot = pot_before_action + actual_call_amount;
+        double next_player_commit = current_player_commit + actual_call_amount;
 
-        // winner gains exactly what folder just lost
-        payoffs[opponent_player] =  current_player_commit;
+        std::shared_ptr<core::GameTreeNode> child_node_after_call;
+        bool called_player_is_now_all_in = (player_stack_remaining - actual_call_amount) <= eps;
+        bool all_in_by_call = called_player_is_now_all_in || opponent_is_all_in;
 
-        auto next_node = std::make_shared<nodes::TerminalNode>(
-            payoffs, current_round, pot, node);
-
-        children_nodes.push_back(next_node);
-        // no BuildBranch : terminal node ends recursion
-    }
-
-    // 4. Bet / Raise Actions
-    // 4. Bet / Raise actions
-    if (can_bet_or_raise) {
-        bool   is_facing_action = opponent_commit > current_player_commit + 1e-9;
-        bool   is_raise         = is_facing_action;               // clarity
-        auto   action_type      = is_raise ? core::PokerAction::kRaise
-                                        : core::PokerAction::kBet;
-
-        // ---- get candidate sizes ------------------------------------------------
-        std::vector<double> bet_amounts_to_add = GetPossibleBets(
-            current_rule_state,
-            current_player,
-            /* current_player_commit */ current_player_commit,
-            /* opponent_commit       */ opponent_commit,
-            /* effective_stack       */ stack,
-            /* last action           */ last_action,
-            /* pot_before_action     */ node->GetPot(),
-            /* street                */ current_round);
-
-        double call_amount = opponent_commit - current_player_commit;
-
-        for (double amount_to_add : bet_amounts_to_add) {
-            if (amount_to_add <= 1e-9 ||
-                amount_to_add > player_stack_remaining + 1e-9)
-                continue;                                           // out of range
-
-            double actual_add   = std::min(amount_to_add, player_stack_remaining);
-            double raise_top_up = actual_add - call_amount;         // 0 if bet
-
-            // --- min-bet / min-raise legality checks ----------------------------
-            if (!is_raise) {                                        // opening bet
-                if (actual_add < current_rule_state.GetBigBlind() - 1e-9 &&
-                    actual_add < player_stack_remaining  - 1e-9)
-                    continue;                                       // too small
-            } else {                                                // raise
-                if (raise_top_up < current_rule_state.GetBigBlind() - 1e-9 &&
-                    actual_add    < player_stack_remaining  - 1e-9)
-                    continue;                                       // too small
+        if (current_round == core::GameRound::kRiver) {
+            std::vector<double> final_commitments_for_showdown;
+            if (current_player == 0) { // IP called
+                final_commitments_for_showdown = {next_player_commit, opponent_commit};
+            } else { // OOP called
+                final_commitments_for_showdown = {opponent_commit, next_player_commit};
             }
-
-            // store pure bet or raise amount (not call+raise)
-            double action_size = is_raise ? raise_top_up : actual_add;
-            core::GameAction bet_action(action_type, action_size);
-            possible_node_actions.push_back(bet_action);
-
-            // --- build child node ----------------------------------------------
-            double next_pot            = pot + actual_add;
-            double next_player_commit  = current_player_commit + actual_add;
-
-            auto next_node = std::make_shared<nodes::ActionNode>(
-                opponent_player, current_round, next_pot, node, /*num deals*/ 1);
-            children_nodes.push_back(next_node);
-
-            config::Rule next_rule = current_rule_state;            // copy
-            if (current_player == 0)
-                next_rule.SetInitialIpCommit(next_player_commit);
-            else
-                next_rule.SetInitialOopCommit(next_player_commit);
-
-            BuildBranch(next_node,
-                        next_rule,
-                        bet_action,
-                        actions_this_round + 1,
-                        raises_this_street + 1);                    // bet counts, too
+            child_node_after_call = std::make_shared<nodes::ShowdownNode>(
+            core::GameRound::kRiver, next_pot, node, 2, final_commitments_for_showdown // P1 commit
+            );
+            std::cout << "    [GTB Debug BuildActionNode] Call on River -> Created ShowdownNode. Pot: " << next_pot << std::endl;
+        } else if (all_in_by_call) {
+            core::GameRound round_for_next_deal = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
+            child_node_after_call = std::make_shared<nodes::ChanceNode>(
+            round_for_next_deal, next_pot, node, std::vector<core::Card>{}, nullptr);
+            std::cout << "    [GTB Debug BuildActionNode] Call (All-in on " << core::GameTreeNode::GameRoundToString(current_round)
+            << ") -> Created ChanceNode for " << core::GameTreeNode::GameRoundToString(round_for_next_deal)
+            << ". Pot: " << next_pot << std::endl;
+        } else { // Not river, not all-in, call completes betting for this street
+            core::GameRound round_for_next_deal = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
+            child_node_after_call = std::make_shared<nodes::ChanceNode>(
+            round_for_next_deal, next_pot, node, std::vector<core::Card>{}, nullptr);
+            std::cout << "    [GTB Debug BuildActionNode] Call (Normal on " << core::GameTreeNode::GameRoundToString(current_round)
+            << ") -> Created ChanceNode for " << core::GameTreeNode::GameRoundToString(round_for_next_deal)
+            << ". Pot: " << next_pot << std::endl;
         }
+    children_nodes.push_back(child_node_after_call);
+    config::Rule next_rule_call = current_rule_state;
+    if (current_player == 0) next_rule_call.SetInitialIpCommit(next_player_commit);
+    else next_rule_call.SetInitialOopCommit(next_player_commit);
+    BuildBranch(child_node_after_call, next_rule_call, call_action, actions_this_round + 1, raises_this_street);
+}
+
+// --- 3. Fold Action ---
+    if (can_fold) {
+    const core::GameAction fold_action(core::PokerAction::kFold);
+    possible_node_actions.push_back(fold_action);
+
+    std::vector<double> payoffs(2);
+    // Player who folds loses their current commitment.
+    // Opponent wins what the folder had committed.
+    payoffs[current_player] = -current_player_commit;
+    payoffs[opponent_player] = current_player_commit; // Simplified: opponent wins current player's commitment
+                                // More accurately, opponent wins what was in the pot from THIS player
+
+    // Let's refine payoffs for fold:
+    // Pot before this action was `pot_before_action`.
+    // If current_player folds, opponent wins `pot_before_action`.
+    // Net for current_player = -current_player_commit
+    // Net for opponent_player = (pot_before_action - opponent_commit)
+    // Example: Pot=10 (5 from P0, 5 from P1). P1 (OOP) bets 5 (pot=15, P1_commit=10). P0 (IP) folds.
+    // P0 commit=5. P0 net = -5.
+    // P1 wins pot of 15. P1 initial commit was 10. P1 net = 15 - 10 = +5.
+    // This matches payoffs[current_player] = -current_player_commit; payoffs[opponent_player] = current_player_commit;
+    // IF pot_before_action = current_player_commit + opponent_commit AND opponent_commit is what the opponent had in
+    // before the action that current_player is folding to.
+    // The current `pot_before_action` is the total pot *before* the current player's turn.
+    // If P1 bets, P0 folds:
+    // P0 loses: P0's initial commitment.
+    // P1 wins: Pot before P1's bet + P0's initial commitment.
+    // The simple payoffs above are correct in terms of *net change from start of hand*.
+
+    auto child_node_after_fold = std::make_shared<nodes::TerminalNode>(
+    payoffs, current_round, pot_before_action, node); // Pot doesn't change due to fold itself
+    std::cout << "    [GTB Debug BuildActionNode] Fold -> Created TerminalNode. Pot: " << pot_before_action << std::endl;
+
+    children_nodes.push_back(child_node_after_fold);
+    // No BuildBranch for TerminalNode
+    }
+
+    // --- 4. Bet / Raise Actions ---
+    if (can_bet_or_raise) {
+        bool is_facing_action = opponent_commit > current_player_commit + eps;
+        bool is_raise = is_facing_action;
+        auto action_type = is_raise ? core::PokerAction::kRaise : core::PokerAction::kBet;
+
+        std::vector<double> bet_amounts_to_add = GetPossibleBets(
+        current_rule_state, current_player, current_player_commit, opponent_commit,
+        stack, last_action, pot_before_action, current_round);
+
+        for (double total_amount_player_will_put_in_for_this_action : bet_amounts_to_add) {
+        // total_amount_player_will_put_in_for_this_action is the amount TO ADD to the pot by current player
+        // for this specific bet/raise action. It's not the total commitment.
+
+        double actual_bet_or_raise_value = total_amount_player_will_put_in_for_this_action;
+            if (is_raise) {
+            // total_amount_player_will_put_in_for_this_action includes the call part
+            actual_bet_or_raise_value = total_amount_player_will_put_in_for_this_action - (opponent_commit - current_player_commit);
+            if (actual_bet_or_raise_value < eps) continue; // Not a valid raise beyond call
+        }
+
+
+        core::GameAction bet_raise_action(action_type, actual_bet_or_raise_value);
+        possible_node_actions.push_back(bet_raise_action);
+
+        double next_pot = pot_before_action + total_amount_player_will_put_in_for_this_action;
+        double next_player_commit = current_player_commit + total_amount_player_will_put_in_for_this_action;
+
+        std::shared_ptr<core::GameTreeNode> child_node_after_bet_raise;
+        bool bet_makes_current_player_all_in = (next_player_commit >= stack - eps);
+
+        // After a bet/raise, it's always the opponent's turn to act on the same street,
+        // unless the bet/raise was an all-in that the opponent is already covering or is forced to call all-in.
+        if (bet_makes_current_player_all_in && opponent_commit >= next_player_commit) {
+        // Player raised all-in, but opponent already has them covered or committed the same.
+        // This should effectively be a showdown after this action if opponent's previous action was a bet/raise.
+        // Or, if opponent checked, they now face an all-in.
+        // This case is tricky: if P0 bets all-in, P1 must act (call/fold).
+        // If P0 raises all-in over P1's bet, P1 must act (call/fold).
+        // The only way it goes to showdown immediately is if P0 calls P1's all-in (handled by Call logic)
+        // OR P0 raises all-in and P1 already has less stack and is thus all-in by calling.
+        // For simplicity, if current player bets/raises all-in, next node is ActionNode for opponent
+        // unless opponent is already all-in and covered.
+
+        // If opponent IS all-in and player's bet/raise covers them:
+        if (opponent_is_all_in && next_player_commit >= opponent_commit) {
+            if (current_round == core::GameRound::kRiver) {
+                std::vector<double> final_commitments_for_showdown;
+                if (current_player == 0) { // IP made the final bet/raise
+                    final_commitments_for_showdown = {next_player_commit, opponent_commit};
+                } else { // OOP made the final bet/raise
+                    final_commitments_for_showdown = {opponent_commit, next_player_commit};
+                }
+                child_node_after_bet_raise = std::make_shared<nodes::ShowdownNode>(
+                    core::GameRound::kRiver, next_pot, node, 2,
+                    final_commitments_for_showdown);
+                std::cout << "    [GTB Debug BuildActionNode] Bet/Raise (P" << current_player << " covers Opponent All-in) on River -> Showdown. Pot: " << next_pot << std::endl;
+                } else {
+                core::GameRound round_for_next_deal = core::GameTreeNode::IntToGameRound(core::GameTreeNode::GameRoundToInt(current_round) + 1);
+                child_node_after_bet_raise = std::make_shared<nodes::ChanceNode>(
+                round_for_next_deal, next_pot, node, std::vector<core::Card>{}, nullptr);
+                std::cout << "    [GTB Debug BuildActionNode] Bet/Raise (P" << current_player << " covers Opponent All-in) on " << core::GameTreeNode::GameRoundToString(current_round)
+                    << " -> ChanceNode for " << core::GameTreeNode::GameRoundToString(round_for_next_deal) << ". Pot: " << next_pot << std::endl;
+            }
+        } else { // Player bets/raises (possibly all-in), opponent is NOT all-in or is not covered yet
+        child_node_after_bet_raise = std::make_shared<nodes::ActionNode>(
+        opponent_player, current_round, next_pot, node, 1);
+        std::cout << "    [GTB Debug BuildActionNode] Bet/Raise by P" << current_player << " on " << core::GameTreeNode::GameRoundToString(current_round)
+        << " (Amount: " << actual_bet_or_raise_value << ", All-in: " << bet_makes_current_player_all_in
+        << ") -> ActionNode for P" << opponent_player << ". Pot: " << next_pot << std::endl;
+    }
+    } else { // Not an all-in situation by current player that ends action
+        child_node_after_bet_raise = std::make_shared<nodes::ActionNode>(
+        opponent_player, current_round, next_pot, node, 1);
+        std::cout << "    [GTB Debug BuildActionNode] Bet/Raise by P" << current_player << " on " << core::GameTreeNode::GameRoundToString(current_round)
+        << " (Amount: " << actual_bet_or_raise_value
+        << ") -> ActionNode for P" << opponent_player << ". Pot: " << next_pot << std::endl;
+    }
+        children_nodes.push_back(child_node_after_bet_raise);
+
+        config::Rule next_rule_bet_raise = current_rule_state;
+        if (current_player == 0) next_rule_bet_raise.SetInitialIpCommit(next_player_commit);
+        else next_rule_bet_raise.SetInitialOopCommit(next_player_commit);
+        BuildBranch(child_node_after_bet_raise, next_rule_bet_raise, bet_raise_action, actions_this_round + 1, raises_this_street + 1);
+    }
     }
     node->SetActionsAndChildren(possible_node_actions, children_nodes);
 }
@@ -379,7 +492,7 @@ void GameTree::BuildActionNode(std::shared_ptr<nodes::ActionNode> node,
 
 // Calculates possible bet/raise amounts based on StreetSettings
 // Added const qualifier
-std::vector<double> GameTree::GetPossibleBets(
+std::vector<double> tree::GameTree::GetPossibleBets(
     const config::Rule& rule,
     size_t player_index,
     double current_player_commit,
@@ -524,7 +637,7 @@ std::vector<double> GameTree::GetPossibleBets(
 
 
 // Helper for rounding bets
-double GameTree::RoundBet(double amount, double min_bet_increment) {
+double tree::GameTree::RoundBet(double amount, double min_bet_increment) {
     if (min_bet_increment <= 1e-9) return amount;
     return std::max(min_bet_increment,
                     std::round(amount / min_bet_increment) * min_bet_increment);
@@ -533,16 +646,16 @@ double GameTree::RoundBet(double amount, double min_bet_increment) {
 
 // --- JSON Loading Helpers ---
 // (Implementations remain placeholders)
-std::shared_ptr<core::GameTreeNode> GameTree::ParseNodeJson(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
-std::shared_ptr<nodes::ActionNode> GameTree::ParseActionNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
-std::shared_ptr<nodes::ChanceNode> GameTree::ParseChanceNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
-std::shared_ptr<nodes::ShowdownNode> GameTree::ParseShowdownNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
-std::shared_ptr<nodes::TerminalNode> GameTree::ParseTerminalNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
+std::shared_ptr<core::GameTreeNode> tree::GameTree::ParseNodeJson(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
+std::shared_ptr<nodes::ActionNode> tree::GameTree::ParseActionNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
+std::shared_ptr<nodes::ChanceNode> tree::GameTree::ParseChanceNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
+std::shared_ptr<nodes::ShowdownNode> tree::GameTree::ParseShowdownNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
+std::shared_ptr<nodes::TerminalNode> tree::GameTree::ParseTerminalNode(const json& node_json, std::weak_ptr<core::GameTreeNode> parent) { throw std::logic_error("JSON loading not implemented."); return nullptr; }
 
 
 // --- Tree Analysis ---
-void GameTree::CalculateTreeMetadata() { if (root_) CalculateMetadataRecursive(root_, 0); }
-int GameTree::CalculateMetadataRecursive(std::shared_ptr<core::GameTreeNode> node, int depth) {
+void tree::GameTree::CalculateTreeMetadata() { if (root_) CalculateMetadataRecursive(root_, 0); }
+int tree::GameTree::CalculateMetadataRecursive(std::shared_ptr<core::GameTreeNode> node, int depth) {
     if (!node) return 0;
     node->SetDepth(depth);
     int subtree_node_count = 1;
@@ -554,8 +667,8 @@ int GameTree::CalculateMetadataRecursive(std::shared_ptr<core::GameTreeNode> nod
     node->SetSubtreeSize(subtree_node_count);
     return subtree_node_count;
 }
-void GameTree::PrintTree(int max_depth) const { if (!root_) { std::cout << "Tree is empty." << std::endl; return; } PrintTreeRecursive(root_, 0, max_depth, ""); }
-void GameTree::PrintTreeRecursive(const std::shared_ptr<core::GameTreeNode>& node, int current_depth, int max_depth, const std::string& prefix) {
+void tree::GameTree::PrintTree(int max_depth) const { if (!root_) { std::cout << "Tree is empty." << std::endl; return; } PrintTreeRecursive(root_, 0, max_depth, ""); }
+void tree::GameTree::PrintTreeRecursive(const std::shared_ptr<core::GameTreeNode>& node, int current_depth, int max_depth, const std::string& prefix) {
     if (!node || (max_depth >= 0 && current_depth > max_depth)) return;
     std::cout << prefix;
     if (current_depth > 0) std::cout << "└── ";
@@ -581,9 +694,9 @@ void GameTree::PrintTreeRecursive(const std::shared_ptr<core::GameTreeNode>& nod
     } else { std::cout << "Unknown Node Type" << std::endl; }
 }
 // Added const qualifier
-uint64_t GameTree::EstimateTrainableMemory(size_t p0_range_size, size_t p1_range_size) const { if (!root_) return 0; return EstimateMemoryRecursive(root_, p0_range_size, p1_range_size, 1); }
+uint64_t tree::GameTree::EstimateTrainableMemory(size_t p0_range_size, size_t p1_range_size) const { if (!root_) return 0; return EstimateMemoryRecursive(root_, p0_range_size, p1_range_size, 1); }
 // Added const qualifier
-uint64_t GameTree::EstimateMemoryRecursive(const std::shared_ptr<core::GameTreeNode>& node, size_t p0_range_size, size_t p1_range_size, size_t num_deals_multiplier) const {
+uint64_t tree::GameTree::EstimateMemoryRecursive(const std::shared_ptr<core::GameTreeNode>& node, size_t p0_range_size, size_t p1_range_size, size_t num_deals_multiplier) const {
     if (!node) return 0;
     uint64_t current_node_memory = 0;
     uint64_t children_memory = 0;
@@ -617,4 +730,4 @@ uint64_t GameTree::EstimateMemoryRecursive(const std::shared_ptr<core::GameTreeN
 
 
 } // namespace tree
-} // namespace poker_solver
+ // namespace poker_solver

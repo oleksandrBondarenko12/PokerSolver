@@ -1,0 +1,66 @@
+{
+    "test_case_name": "SimpleFlop_OOPBets_IPCalls",
+    "description": "A basic scenario on the flop where OOP makes a pot-sized bet and IP calls.",
+    "solver_config": {
+      "iterations": 2,
+      "threads": 1
+    },
+    "game_rule": {
+      "starting_round": "Flop",
+      "initial_commitments": {
+        "ip": 5.0,
+        "oop": 5.0
+      },
+      "blinds": {
+        "sb": 0.5,
+        "bb": 1.0
+      },
+      "effective_stack": 100.0,
+      "raise_limit_per_street": 3,
+      "all_in_threshold_ratio": 0.98,
+      "initial_board": ["Ac", "Kd", "5h"],
+      "building_settings": {
+        "flop_ip": {
+          "bet_sizes_percent": [50, 75],
+          "raise_sizes_percent": [50, 100],
+          "donk_sizes_percent": [],
+          "allow_all_in": true
+        },
+        "turn_ip": {
+          "bet_sizes_percent": [50, 100],
+          "raise_sizes_percent": [75, 125],
+          "donk_sizes_percent": [],
+          "allow_all_in": true
+        },
+        "river_ip": {
+          "bet_sizes_percent": [75, 150],
+          "raise_sizes_percent": [100],
+          "donk_sizes_percent": [],
+          "allow_all_in": true
+        },
+        "flop_oop": {
+          "bet_sizes_percent": [50, 75],
+          "raise_sizes_percent": [50, 100],
+          "donk_sizes_percent": [33],
+          "allow_all_in": true
+        },
+        "turn_oop": {
+          "bet_sizes_percent": [50, 100],
+          "raise_sizes_percent": [75, 125],
+          "donk_sizes_percent": [],
+          "allow_all_in": true
+        },
+        "river_oop": {
+          "bet_sizes_percent": [75, 150],
+          "raise_sizes_percent": [100],
+          "donk_sizes_percent": [],
+          "allow_all_in": true
+        }
+      }
+    },
+    "player_ranges": {
+      "ip": "AA,KK,AKs,QQ:0.5",
+      "oop": "JJ,TT,AKo,AQs:0.7"
+    },
+    "expected_output_file": "golden_flop_oop_bets_ip_calls.json"
+  }

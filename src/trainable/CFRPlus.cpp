@@ -1,4 +1,4 @@
-#include "CFRPlus.h"
+#include "trainable/CFRPlus.h"
 #include <cmath>
 #include <limits>
 #include <nlohmann/json.hpp>
