@@ -89,10 +89,10 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
     uint64_t river_board_mask) {
 
     // *** ADDED: Log input parameters ***
-    std::cout << "[DEBUG RRM Calc] Player: " << player_index
-              << ", Initial Range Size: " << initial_player_range.size()
-              << ", Board Mask: 0x" << std::hex << river_board_mask << std::dec
-              << std::endl;
+    //std::cout << "[DEBUG RRM Calc] Player: " << player_index
+    //          << ", Initial Range Size: " << initial_player_range.size()
+     //         << ", Board Mask: 0x" << std::hex << river_board_mask << std::dec
+    //          << std::endl;
     // ***********************************
 
     // Validate board mask represents 5 cards
@@ -124,8 +124,8 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
         // Skip hands that conflict with the river board
         if (core::Card::DoBoardsOverlap(private_mask, river_board_mask)) {
             // *** ADDED: Log skipped hands ***
-            std::cout << "[DEBUG RRM Calc] Skipping hand " << hand.ToString()
-                      << " (Idx " << i << ") due to board conflict." << std::endl;
+            //std::cout << "[DEBUG RRM Calc] Skipping hand " << hand.ToString()
+            //          << " (Idx " << i << ") due to board conflict." << std::endl;
             // *******************************
             continue;
         }
@@ -134,8 +134,8 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
         int rank = compairer_->GetHandRank(private_mask, river_board_mask);
 
         // *** ADDED: Log hand and rank ***
-        std::cout << "[DEBUG RRM Calc] Hand: " << hand.ToString()
-                  << " (Idx " << i << "), Rank: " << rank << std::endl;
+        //std::cout << "[DEBUG RRM Calc] Hand: " << hand.ToString()
+          //        << " (Idx " << i << "), Rank: " << rank << std::endl;
         // *******************************
 
         // Only add combos that could be successfully ranked
@@ -144,8 +144,8 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
     }
 
     // *** ADDED: Log final calculated size before sort ***
-    std::cout << "[DEBUG RRM Calc] Calculated combos size before sort: "
-              << calculated_combos.size() << std::endl;
+    //std::cout << "[DEBUG RRM Calc] Calculated combos size before sort: "
+      //        << calculated_combos.size() << std::endl;
     // ***************************************************
 
 

@@ -192,21 +192,21 @@ std::vector<double> PCfrSolver::cfr_utility(
     }
 
     // --- DEBUG PRINT ---
-    std::cout << "[DEBUG CFRUtil] Iter: " << iteration << ", Trav: " << traverser
-              << ", NodeDepth: " << node->GetDepth() // Assuming depth is set
-              << ", NodeType: ";
+    //std::cout << "[DEBUG CFRUtil] Iter: " << iteration << ", Trav: " << traverser
+      //        << ", NodeDepth: " << node->GetDepth() // Assuming depth is set
+        //      << ", NodeType: ";
     switch(node->GetNodeType()) {
-        case core::GameTreeNodeType::kAction: std::cout << "Action (P" << std::dynamic_pointer_cast<nodes::ActionNode>(node)->GetPlayerIndex() << ")"; break;
-        case core::GameTreeNodeType::kChance: std::cout << "Chance"; break;
-        case core::GameTreeNodeType::kShowdown: std::cout << "Showdown"; break;
-        case core::GameTreeNodeType::kTerminal: std::cout << "Terminal"; break;
+        case core::GameTreeNodeType::kAction: /*std::cout << "Action (P" << std::dynamic_pointer_cast<nodes::ActionNode>(node)->GetPlayerIndex() << ")";*/ break;
+        case core::GameTreeNodeType::kChance: /*std::cout << "Chance";*/ break;
+        case core::GameTreeNodeType::kShowdown: /*std::cout << "Showdown";*/ break;
+        case core::GameTreeNodeType::kTerminal: /*std::cout << "Terminal";*/ break;
         default: std::cout << "Unknown";
     }
-    std::cout << ", Round: " << core::GameTreeNode::GameRoundToString(node->GetRound())
-              << ", Board: 0x" << std::hex << current_board_mask << std::dec
-              << " (Cards: " << core::Card::Uint64ToCards(current_board_mask).size() << ")"
-              << ", ChanceReach: " << chance_reach
-              << std::endl;
+    //std::cout << ", Round: " << core::GameTreeNode::GameRoundToString(node->GetRound())
+      //        << ", Board: 0x" << std::hex << current_board_mask << std::dec
+        //      << " (Cards: " << core::Card::Uint64ToCards(current_board_mask).size() << ")"
+          //    << ", ChanceReach: " << chance_reach
+            //  << std::endl;
 
     bool is_terminal = false;
     core::GameTreeNodeType node_type = node->GetNodeType();
@@ -272,9 +272,9 @@ std::vector<double> PCfrSolver::cfr_action_node(
     if (trainable_strategy.size() == (num_actions * acting_player_num_hands)) {
         current_strategy_local = trainable_strategy;
     } else {
-        std::cerr << "[ERROR] Strategy size mismatch (" << trainable_strategy.size()
-                  << ") from GetCurrentStrategy() in ActionNode (expected "
-                  << (num_actions * acting_player_num_hands) << "). Using uniform." << std::endl;
+        //std::cerr << "[ERROR] Strategy size mismatch (" << trainable_strategy.size()
+          //        << ") from GetCurrentStrategy() in ActionNode (expected "
+            //      << (num_actions * acting_player_num_hands) << "). Using uniform." << std::endl;
         double uniform_prob = (num_actions > 0) ? 1.0 / static_cast<double>(num_actions) : 0.0;
         current_strategy_local.assign(num_actions * acting_player_num_hands, uniform_prob);
     }
@@ -389,8 +389,8 @@ std::vector<double> PCfrSolver::cfr_chance_node(
         if (p >= reach_probs.size()) continue; // Safety check
         const auto& range = pcm_->GetPlayerRange(p);
         if (range.size() != reach_probs[p].size()) {
-            std::cerr << "[WARN] cfr_chance_node: Mismatch between range size (" << range.size()
-                      << ") and reach_probs size (" << reach_probs[p].size() << ") for player " << p << std::endl;
+            //std::cerr << "[WARN] cfr_chance_node: Mismatch between range size (" << range.size()
+              //        << ") and reach_probs size (" << reach_probs[p].size() << ") for player " << p << std::endl;
             // Decide how to handle: skip player, throw, or continue with caution
             // For now, let's be cautious and potentially skip this player's blockers if sizes mismatch significantly
             if (std::abs(static_cast<long>(range.size()) - static_cast<long>(reach_probs[p].size())) > 5) { // Arbitrary threshold
@@ -434,8 +434,8 @@ std::vector<double> PCfrSolver::cfr_chance_node(
 
 
     // --- DEBUG PRINT ---
-     std::cout << "  [DEBUG ChanceEntry] Board BEFORE deal: 0x" << std::hex << current_board_mask << std::dec
-               << " (Cards: " << core::Card::Uint64ToCards(current_board_mask).size() << ")" << std::endl;
+    // std::cout << "  [DEBUG ChanceEntry] Board BEFORE deal: 0x" << std::hex << current_board_mask << std::dec
+      //         << " (Cards: " << core::Card::Uint64ToCards(current_board_mask).size() << ")" << std::endl;
     // --- END DEBUG PRINT ---
 
     for (const auto& outcome_cards : outcomes) {
@@ -443,12 +443,12 @@ std::vector<double> PCfrSolver::cfr_chance_node(
         uint64_t next_board_mask = current_board_mask | outcome_board_mask;
 
         // --- DEBUG PRINT ---
-         std::cout << "    [DEBUG ChanceDeal] Dealt: ";
-         for(int ci : outcome_cards) { std::cout << core::Card::IntToString(ci) << " "; }
-         std::cout << "(Mask: 0x" << std::hex << outcome_board_mask << std::dec << ")"
-                   << " -> Next Board: 0x" << std::hex << next_board_mask << std::dec
-                   << " (Cards: " << core::Card::Uint64ToCards(next_board_mask).size() << ")"
-                   << std::endl;
+        // std::cout << "    [DEBUG ChanceDeal] Dealt: ";
+        // for(int ci : outcome_cards) { std::cout << core::Card::IntToString(ci) << " "; }
+        // std::cout << "(Mask: 0x" << std::hex << outcome_board_mask << std::dec << ")"
+          //         << " -> Next Board: 0x" << std::hex << next_board_mask << std::dec
+           //        << " (Cards: " << core::Card::Uint64ToCards(next_board_mask).size() << ")"
+             //      << std::endl;
         // --- END DEBUG PRINT ---
 
         std::vector<std::vector<double>> next_reach_probs = reach_probs;
@@ -493,6 +493,7 @@ std::vector<double> PCfrSolver::cfr_showdown_node(
     int traverser,
     uint64_t final_board_mask, double chance_reach)
 {
+    /*
     // --- DEBUG PRINT ---
     std::cout << "  [DEBUG ShowdownNode] Iter: " << "N/A" // Iteration not directly passed here, but known from caller
               << ", Trav: " << traverser
@@ -501,6 +502,7 @@ std::vector<double> PCfrSolver::cfr_showdown_node(
               << ", ChanceReach: " << chance_reach
               << std::endl;
     // --- END DEBUG PRINT ---
+    */
 
     int opponent_player = 1 - traverser;
     const auto& traverser_range = pcm_->GetPlayerRange(traverser);
@@ -511,10 +513,10 @@ std::vector<double> PCfrSolver::cfr_showdown_node(
     std::vector<double> traverser_utility(traverser_hands, 0.0);
 
     if (opponent_player < 0 || opponent_player >= static_cast<int>(reach_probs.size()) || (opponent_hands > 0 && opponent_hands != reach_probs[opponent_player].size())) {
-        std::cerr << "[ERROR] Opponent range/reach_probs mismatch in cfr_showdown_node. Opponent: " << opponent_player
-                  << ", Opponent Hands: " << opponent_hands
-                  << ", Reach Probs size for opp: " << (opponent_player < static_cast<int>(reach_probs.size()) ? reach_probs[opponent_player].size() : -1)
-                  << std::endl;
+        //std::cerr << "[ERROR] Opponent range/reach_probs mismatch in cfr_showdown_node. Opponent: " << opponent_player
+          //        << ", Opponent Hands: " << opponent_hands
+            //      << ", Reach Probs size for opp: " << (opponent_player < static_cast<int>(reach_probs.size()) ? reach_probs[opponent_player].size() : -1)
+              //    << std::endl;
         return traverser_utility;
     }
 
@@ -592,10 +594,10 @@ std::vector<double> PCfrSolver::cfr_terminal_node(
     std::vector<double> node_utility(traverser_hands, 0.0);
 
     if (opponent_player < 0 || opponent_player >= static_cast<int>(reach_probs.size()) || (opponent_hands > 0 && opponent_hands != reach_probs[opponent_player].size()) ) {
-         std::cerr << "[ERROR] Opponent range/reach_probs mismatch in cfr_terminal_node. Opponent: " << opponent_player
-                  << ", Opponent Hands: " << opponent_hands
-                  << ", Reach Probs size for opp: " << (opponent_player < static_cast<int>(reach_probs.size()) ? reach_probs[opponent_player].size() : -1)
-                  << std::endl;
+        // std::cerr << "[ERROR] Opponent range/reach_probs mismatch in cfr_terminal_node. Opponent: " << opponent_player
+          //        << ", Opponent Hands: " << opponent_hands
+            //      << ", Reach Probs size for opp: " << (opponent_player < static_cast<int>(reach_probs.size()) ? reach_probs[opponent_player].size() : -1)
+              //    << std::endl;
          return node_utility;
     }
 
