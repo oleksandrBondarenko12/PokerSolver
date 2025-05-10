@@ -100,8 +100,8 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
     uint64_t river_board_mask) {
 
     // --- DEBUG LOGGING ---
-    std::cout << "[RRM_CALC] P" << player_index << " Board: 0x" << std::hex << river_board_mask << std::dec
-              << " InitialRangeSize: " << initial_player_range.size() << std::endl;
+    // std::cout << "[RRM_CALC] P" << player_index << " Board: 0x" << std::hex << river_board_mask << std::dec
+       //       << " InitialRangeSize: " << initial_player_range.size() << std::endl;
     // --- END DEBUG ---
 
     // Validate board mask represents 5 cards

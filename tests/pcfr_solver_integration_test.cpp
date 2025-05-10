@@ -9,10 +9,11 @@
 #include "Deck.h"
 #include <memory>
 #include <filesystem> // For path joining if needed
-#include <fstream>    // For load_json_file
+#include <fstream>    // For load_json_file AND std::ofstream
 #include <iostream>   // For std::cout
 #include <iomanip>    // For std::setprecision
 #include <sstream>    // For ostringstream
+#include <string>     // For std::string manipulation
 
 // Use aliases for convenience
 using json = nlohmann::json;
@@ -174,21 +175,40 @@ TEST_F(PCfrSolverIntegrationTest, SimpleFlopTest) {
     std::string scenario_file = "test_data/simple_flop_scenario.json";
     std::unique_ptr<solver::PCfrSolver> solver = LoadAndSetupSolverForScenario(scenario_file);
 
-    // If LoadAndSetupSolverForScenario used ADD_FAILURE and returned nullptr,
-    // the test will proceed but assertions on solver will fail.
-    // To stop immediately on setup failure, use ASSERT_NE inside the test body after calling,
-    // or change ADD_FAILURE to FAIL in LoadAndSetupSolverForScenario.
     ASSERT_NE(solver, nullptr) << "Solver setup failed for scenario: " << scenario_file;
+    ASSERT_NE(current_scenario_, nullptr) << "Current scenario is null after solver setup for: " << scenario_file;
+
 
     ASSERT_NO_THROW(solver->Train());
 
     json actual_output_json;
     ASSERT_NO_THROW(actual_output_json = solver->DumpStrategy(true, 3));
 
+    // Output to terminal (as before, for immediate feedback)
     std::cout << "SimpleFlopTest Actual Output for " << current_scenario_->test_case_name << ":\n"
               << actual_output_json.dump(2) << std::endl;
 
-    ASSERT_NE(current_scenario_, nullptr); // Should be true if solver is not null
+    // --- Save to JSON file ---
+    std::string output_filename = current_scenario_->test_case_name + "_actual_output.json";
+    // Replace spaces or invalid characters in filename if necessary
+    std::replace(output_filename.begin(), output_filename.end(), ' ', '_');
+    // You might want to place it in a specific output directory, e.g., "test_outputs/"
+    // For simplicity, saving in the current execution directory (usually build/tests/)
+    std::string full_output_path = output_filename; // Can be prepended with a directory path
+
+    std::ofstream out_file(full_output_path);
+    if (out_file.is_open()) {
+        out_file << actual_output_json.dump(2); // Use pretty print with indent 2
+        out_file.close();
+        std::cout << "Actual output saved to: " << full_output_path << std::endl;
+    } else {
+        std::cerr << "Warning: Could not open file to save actual output: " << full_output_path << std::endl;
+        // Decide if this should be a test failure
+        // ADD_FAILURE() << "Could not save actual output to file: " << full_output_path;
+    }
+    // --- End of save to JSON file ---
+
+
     if (!current_scenario_->expected_output_file.empty()) {
         std::string golden_file_path = "test_data/" + current_scenario_->expected_output_file;
         json expected_output = load_json_file(golden_file_path);

@@ -143,8 +143,8 @@ void PCfrSolver::Train() {
             if (i % 100 == 0 || i == config_.iteration_limit) {
                  uint64_t current_time = utils::TimeSinceEpochMillisec();
                  double elapsed_sec = static_cast<double>(current_time - start_time) / 1000.0;
-                 std::cout << "[INFO] Iteration " << i << "/" << config_.iteration_limit
-                           << " completed. Time elapsed: " << std::fixed << std::setprecision(2) << elapsed_sec << "s." << std::endl;
+                 // std::cout << "[INFO] Iteration " << i << "/" << config_.iteration_limit
+                    //       << " completed. Time elapsed: " << std::fixed << std::setprecision(2) << elapsed_sec << "s." << std::endl;
             }
         }
     }
@@ -154,9 +154,9 @@ void PCfrSolver::Train() {
      double total_sec = static_cast<double>(end_time - start_time) / 1000.0;
 
      // Use completed_iterations for the log message
-     std::cout << "[INFO] Training finished after "
-               << completed_iterations // Use the tracked variable
-               << " iterations. Total time: " << std::fixed << std::setprecision(2) << total_sec << "s." << std::endl;
+     //std::cout << "[INFO] Training finished after "
+       //        << completed_iterations // Use the tracked variable
+         //      << " iterations. Total time: " << std::fixed << std::setprecision(2) << total_sec << "s." << std::endl;
 }
 
 void PCfrSolver::Stop() {
