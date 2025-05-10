@@ -28,8 +28,8 @@ TestScenario::TestScenario(const json& j_scenario, const core::Deck& deck) :
 
         if (j_scenario.contains("solver_config")) {
             const auto& j_sc = j_scenario.at("solver_config");
-            solver_config.iteration_limit = get_json_value_or_default(j_sc, "iterations", 100);
-            solver_config.num_threads = get_json_value_or_default(j_sc, "threads", 1);
+            solver_config.iteration_limit = get_json_value_or_default(j_sc, "iterations", 1);
+            solver_config.num_threads = get_json_value_or_default(j_sc, "threads", 100);
         }
 
         // Populate initial_board_ints_for_pcm from the game_rule member

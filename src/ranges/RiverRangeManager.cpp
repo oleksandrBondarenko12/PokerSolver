@@ -45,15 +45,26 @@ const std::vector<RiverCombs>& RiverRangeManager::GetRiverCombos(
          throw std::out_of_range(oss.str());
     }
 
+    // --- DEBUG LOGGING ---
+    // std::cout << "[RRM_GET] P" << player_index << " Board: 0x" << std::hex << river_board_mask << std::dec
+    //           << " RangeSize: " << initial_player_range.size() << std::endl;
+    // --- END DEBUG ---
+
     // --- Cache Lookup (Thread-Safe) ---
     { // Scope for lock guard
         std::lock_guard<std::mutex> lock(cache_mutex);
         auto it = cache.find(river_board_mask);
         if (it != cache.end()) {
-            // Found in cache, return it
+            // --- DEBUG LOGGING ---
+            // std::cout << "[RRM_GET] Cache HIT! Board: 0x" << std::hex << river_board_mask << std::dec << std::endl;
+            // --- END DEBUG ---
             return it->second;
         }
     } // Lock released here
+
+    // --- DEBUG LOGGING ---
+    // std::cout << "[RRM_GET] Cache MISS. Board: 0x" << std::hex << river_board_mask << std::dec << ". Calculating..." << std::endl;
+    // --- END DEBUG ---
 
     // --- Not found in cache, calculate it ---
     // Call the private method to do the calculation and caching
@@ -88,12 +99,10 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
     const std::vector<core::PrivateCards>& initial_player_range,
     uint64_t river_board_mask) {
 
-    // *** ADDED: Log input parameters ***
-    //std::cout << "[DEBUG RRM Calc] Player: " << player_index
-    //          << ", Initial Range Size: " << initial_player_range.size()
-     //         << ", Board Mask: 0x" << std::hex << river_board_mask << std::dec
-    //          << std::endl;
-    // ***********************************
+    // --- DEBUG LOGGING ---
+    std::cout << "[RRM_CALC] P" << player_index << " Board: 0x" << std::hex << river_board_mask << std::dec
+              << " InitialRangeSize: " << initial_player_range.size() << std::endl;
+    // --- END DEBUG ---
 
     // Validate board mask represents 5 cards
     int pop_count = 0;
@@ -102,8 +111,12 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
     #elif defined(__GNUC__) || defined(__clang__)
         pop_count = __builtin_popcountll(river_board_mask);
     #else
-        uint64_t count_mask = river_board_mask;
-        while(count_mask > 0) { count_mask &= (count_mask - 1); pop_count++; }
+        // Fallback popcount for older compilers
+        uint64_t temp_mask = river_board_mask;
+        while(temp_mask > 0) {
+            temp_mask &= (temp_mask - 1);
+            pop_count++;
+        }
     #endif
 
     if (pop_count != 5) {
@@ -123,30 +136,28 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
 
         // Skip hands that conflict with the river board
         if (core::Card::DoBoardsOverlap(private_mask, river_board_mask)) {
-            // *** ADDED: Log skipped hands ***
-            //std::cout << "[DEBUG RRM Calc] Skipping hand " << hand.ToString()
-            //          << " (Idx " << i << ") due to board conflict." << std::endl;
-            // *******************************
+            // --- DEBUG LOGGING ---
+            // std::cout << "[RRM_CALC] Skipping hand " << hand.ToString()
+            //           << " (Idx " << i << ") due to board conflict with 0x" << std::hex << river_board_mask << std::dec << std::endl;
+            // --- END DEBUG ---
             continue;
         }
 
         // Evaluate the 7-card hand rank using the injected compairer
         int rank = compairer_->GetHandRank(private_mask, river_board_mask);
 
-        // *** ADDED: Log hand and rank ***
-        //std::cout << "[DEBUG RRM Calc] Hand: " << hand.ToString()
-          //        << " (Idx " << i << "), Rank: " << rank << std::endl;
-        // *******************************
+        // --- DEBUG LOGGING ---
+        // std::cout << "[RRM_CALC] Hand: " << hand.ToString()
+        //           << " (Orig Idx " << i << "), Rank: " << rank << std::endl;
+        // --- END DEBUG ---
 
-        // Only add combos that could be successfully ranked
-        // (rank != kInvalidRank could be added here if desired)
         calculated_combos.emplace_back(hand, rank, i);
     }
 
-    // *** ADDED: Log final calculated size before sort ***
-    //std::cout << "[DEBUG RRM Calc] Calculated combos size before sort: "
-      //        << calculated_combos.size() << std::endl;
-    // ***************************************************
+    // --- DEBUG LOGGING ---
+    // std::cout << "[RRM_CALC] Calculated combos size before sort: "
+    //           << calculated_combos.size() << " for Board: 0x" << std::hex << river_board_mask << std::dec << std::endl;
+    // --- END DEBUG ---
 
 
     // Sort the results by rank.
@@ -173,10 +184,12 @@ const std::vector<RiverCombs>& RiverRangeManager::CalculateAndCacheRiverCombos(
 
     { // Scope for lock guard
         std::lock_guard<std::mutex> lock(cache_mutex);
-        // Use emplace for potential efficiency, returns pair<iterator, bool>
-        // Move the calculated vector into the cache.
+        // --- DEBUG LOGGING ---
+        // std::cout << "[RRM_CALC] Inserting into cache. Player: " << player_index
+        //           << ", Board: 0x" << std::hex << river_board_mask << std::dec
+        //           << ", NumCombos: " << calculated_combos.size() << std::endl;
+        // --- END DEBUG ---
         auto result = cache.emplace(river_board_mask, std::move(calculated_combos));
-        // Return a reference to the vector in the map
         return result.first->second;
     }
 }
