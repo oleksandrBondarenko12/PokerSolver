@@ -47,6 +47,19 @@ PCfrSolver::PCfrSolver(std::shared_ptr<tree::GameTree> game_tree, // Use tree::G
       config_(std::move(solver_config)),
       initial_board_mask_(core::Card::CardIntsToUint64(rule.GetInitialBoardCardsInt()))
 {
+    const auto& board_ints_from_rule = rule.GetInitialBoardCardsInt();
+    std::cout << "[DEBUG_SOLVER_CONSTRUCTOR] Board ints from Rule object: ";
+    for(int c_int : board_ints_from_rule) std::cout << c_int << " (" << core::Card::IntToString(c_int) << ") ";
+    std::cout << std::endl;
+
+    initial_board_mask_ = core::Card::CardIntsToUint64(board_ints_from_rule);
+
+    // *** DEBUG PRINT ADDED HERE ***
+    std::cout << "[DEBUG_SOLVER_CONSTRUCTOR] Calculated initial_board_mask_: 0x" << std::hex << initial_board_mask_ << std::dec << std::endl;
+    std::vector<core::Card> temp_cards_from_mask = core::Card::Uint64ToCards(initial_board_mask_);
+    std::cout << "[DEBUG_SOLVER_CONSTRUCTOR] Mask 0x" << std::hex << initial_board_mask_ << std::dec << " represents cards: ";
+    for(const auto& card : temp_cards_from_mask) std::cout << card.ToString() << " ";
+    std::cout << std::endl;
     if (!game_tree_) {
         throw std::invalid_argument("PCfrSolver: GameTree cannot be null.");
     }

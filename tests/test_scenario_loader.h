@@ -103,15 +103,22 @@ inline config::Rule create_rule_from_json(const json& j_rule, const core::Deck& 
 
     std::vector<int> initial_board_cards_for_rule; // << PARSE THIS
     if (j_rule.contains("initial_board") && j_rule.at("initial_board").is_array()) {
+        std::cout << "[DEBUG_LOADER] Raw initial_board from JSON: " << j_rule.at("initial_board") << std::endl; // Print raw JSON array
         for (const auto& card_str_json : j_rule.at("initial_board")) {
             std::string card_str = card_str_json.get<std::string>();
+            std::cout << "[DEBUG_LOADER] Parsing card string: " << card_str << std::endl;
             std::optional<int> card_val = core::Card::StringToInt(card_str);
             if (!card_val) {
                 throw std::invalid_argument("Invalid card string in initial_board for Rule: " + card_str);
             }
             initial_board_cards_for_rule.push_back(card_val.value());
+            std::cout << "[DEBUG_LOADER] Parsed to int: " << card_val.value() << std::endl;
         }
     }
+    std::cout << "[DEBUG_LOADER] Final initial_board_cards_for_rule (ints): ";
+    for(int c_int : initial_board_cards_for_rule) std::cout << c_int << " ";
+    std::cout << std::endl;
+
 
     config::GameTreeBuildingSettings build_settings;
     if (j_rule.contains("building_settings") && j_rule.at("building_settings").is_object()) {

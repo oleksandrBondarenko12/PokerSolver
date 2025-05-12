@@ -2,7 +2,7 @@
     "test_case_name": "SimpleFlop_OOPBets_IPCalls",
     "description": "A basic scenario on the flop where OOP makes a pot-sized bet and IP calls.",
     "solver_config": {
-      "iterations": 100000,
+      "iterations": 1000,
       "threads": 8
     },
     "game_rule": {
