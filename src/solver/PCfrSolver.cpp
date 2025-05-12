@@ -20,6 +20,7 @@
 #include <map>
 #include <iomanip>
 #include <utility> // For std::move
+#include <omp.h>
 
 // Use aliases for namespaces (optional, but can make definitions cleaner)
 // namespace core = poker_solver::core;
@@ -92,6 +93,15 @@ PCfrSolver::PCfrSolver(std::shared_ptr<tree::GameTree> game_tree, // Use tree::G
 void PCfrSolver::Train() {
     stop_signal_ = false;
     evs_calculated_ = false;
+
+    // --- Set OpenMP Threads ---
+    if (config_.num_threads > 0) {
+        omp_set_num_threads(config_.num_threads);
+        std::cout << "[INFO] OpenMP enabled with " << config_.num_threads << " threads." << std::endl;
+    } else {
+         omp_set_num_threads(1); // Explicitly set to 1 if config is 0 or less
+        std::cout << "[INFO] OpenMP running with 1 thread (parallelism disabled by config)." << std::endl;
+    }
 
     std::cout << "[INFO] Starting PCFR training for " << config_.iteration_limit << " iterations..." << std::endl;
     std::cout << "[INFO] Initial Board Mask: 0x" << std::hex << initial_board_mask_ << std::dec << std::endl;
@@ -368,7 +378,7 @@ std::vector<double> PCfrSolver::cfr_chance_node(
     uint64_t current_board_mask,
     double parent_chance_reach)
 {
-
+    // --- Get necessary info from the node ---
     std::shared_ptr<core::GameTreeNode> child = node->GetChild();
     if (!child) throw std::logic_error("Chance node has no child.");
 
@@ -377,36 +387,29 @@ std::vector<double> PCfrSolver::cfr_chance_node(
     if (round_after_chance == core::GameRound::kFlop) num_cards_to_deal = 3;
     else if (round_after_chance == core::GameRound::kTurn) num_cards_to_deal = 1;
     else if (round_after_chance == core::GameRound::kRiver) num_cards_to_deal = 1;
-    else { // Should not happen if tree is built correctly
+    else {
         std::cerr << "[ERROR] cfr_chance_node: Invalid round after chance: " << core::GameTreeNode::GameRoundToString(round_after_chance) << std::endl;
         throw std::logic_error("Invalid round after ChanceNode in cfr_chance_node.");
     }
 
-
+    // --- Determine unavailable cards (board + player hands) ---
     uint64_t unavailable_mask = current_board_mask; // Start with existing board
-    // Add cards from players' hands that can actually reach this node
     for(size_t p=0; p < num_players_; ++p) {
         if (p >= reach_probs.size()) continue; // Safety check
-        const auto& range = pcm_->GetPlayerRange(p);
-        if (range.size() != reach_probs[p].size()) {
-            //std::cerr << "[WARN] cfr_chance_node: Mismatch between range size (" << range.size()
-              //        << ") and reach_probs size (" << reach_probs[p].size() << ") for player " << p << std::endl;
-            // Decide how to handle: skip player, throw, or continue with caution
-            // For now, let's be cautious and potentially skip this player's blockers if sizes mismatch significantly
-            if (std::abs(static_cast<long>(range.size()) - static_cast<long>(reach_probs[p].size())) > 5) { // Arbitrary threshold
-                continue;
-            }
+        const auto& range = pcm_->GetPlayerRange(p); // Read-only access to shared pcm_
+        if (range.size() != reach_probs[p].size() && std::abs(static_cast<long>(range.size()) - static_cast<long>(reach_probs[p].size())) > 5) {
+            continue;
         }
         for(size_t h=0; h < std::min(range.size(), reach_probs[p].size()); ++h) {
-            if (reach_probs[p][h] > 1e-12) { // Only consider hands that can reach
+            if (reach_probs[p][h] > 1e-12) {
                 unavailable_mask |= range[h].GetBoardMask();
             }
         }
     }
 
-
+    // --- Determine available cards for dealing ---
     std::vector<int> available_card_indices;
-    const auto& all_deck_cards = deck_.GetCards();
+    const auto& all_deck_cards = deck_.GetCards(); // Read-only access to shared deck_
     available_card_indices.reserve(core::kNumCardsInDeck);
     for(int i=0; i < core::kNumCardsInDeck; ++i) {
         if (!core::Card::DoBoardsOverlap(1ULL << i, unavailable_mask)) {
@@ -414,10 +417,12 @@ std::vector<double> PCfrSolver::cfr_chance_node(
         }
     }
 
+    // --- Check if enough cards are available ---
     if (static_cast<int>(available_card_indices.size()) < num_cards_to_deal) {
         return std::vector<double>(pcm_->GetPlayerRange(traverser).size(), 0.0);
     }
 
+    // --- Generate card combinations (outcomes) ---
     utils::Combinations<int> combinations(available_card_indices, num_cards_to_deal);
     const auto& outcomes = combinations.GetCombinations();
     double num_possible_outcomes = static_cast<double>(outcomes.size());
@@ -426,64 +431,78 @@ std::vector<double> PCfrSolver::cfr_chance_node(
         return std::vector<double>(pcm_->GetPlayerRange(traverser).size(), 0.0);
     }
 
+    // --- Prepare for parallel loop ---
     double outcome_probability = 1.0 / num_possible_outcomes;
     double next_node_chance_reach = parent_chance_reach * outcome_probability;
 
     size_t traverser_num_hands = pcm_->GetPlayerRange(traverser).size();
+    // Initialize the shared result vector *before* the parallel region
     std::vector<double> total_expected_utility(traverser_num_hands, 0.0);
 
+    // --- Parallel Loop over Chance Outcomes ---
+    // We removed the reduction clause. We will manually add to the shared
+    // total_expected_utility vector inside a critical section.
+    #pragma omp parallel for schedule(dynamic)
+    for (size_t i = 0; i < outcomes.size(); ++i) {
+        const auto& outcome_cards = outcomes[i];
 
-    // --- DEBUG PRINT ---
-    // std::cout << "  [DEBUG ChanceEntry] Board BEFORE deal: 0x" << std::hex << current_board_mask << std::dec
-      //         << " (Cards: " << core::Card::Uint64ToCards(current_board_mask).size() << ")" << std::endl;
-    // --- END DEBUG PRINT ---
-
-    for (const auto& outcome_cards : outcomes) {
+        // --- Thread-Local Variables ---
         uint64_t outcome_board_mask = core::Card::CardIntsToUint64(outcome_cards);
         uint64_t next_board_mask = current_board_mask | outcome_board_mask;
-
-        // --- DEBUG PRINT ---
-        // std::cout << "    [DEBUG ChanceDeal] Dealt: ";
-        // for(int ci : outcome_cards) { std::cout << core::Card::IntToString(ci) << " "; }
-        // std::cout << "(Mask: 0x" << std::hex << outcome_board_mask << std::dec << ")"
-          //         << " -> Next Board: 0x" << std::hex << next_board_mask << std::dec
-           //        << " (Cards: " << core::Card::Uint64ToCards(next_board_mask).size() << ")"
-             //      << std::endl;
-        // --- END DEBUG PRINT ---
-
-        std::vector<std::vector<double>> next_reach_probs = reach_probs;
+        std::vector<std::vector<double>> next_reach_probs = reach_probs; // Thread-local copy
         bool traverser_can_reach_this_outcome = false;
         bool opponent_can_reach_this_outcome = false;
         int opponent_player = 1 - traverser;
 
+        // --- Update thread-local reach probabilities ---
         for (size_t p = 0; p < num_players_; ++p) {
-             if (p >= next_reach_probs.size()) continue;
-             const auto& range = pcm_->GetPlayerRange(p);
-             double current_reach_sum_for_outcome = 0.0;
-             for (size_t h = 0; h < std::min(range.size(), next_reach_probs[p].size()); ++h) {
-                  if (core::Card::DoBoardsOverlap(range[h].GetBoardMask(), outcome_board_mask)) {
-                      next_reach_probs[p][h] = 0.0;
-                  }
-                  current_reach_sum_for_outcome += next_reach_probs[p][h];
-             }
-             if (p == static_cast<size_t>(traverser) && current_reach_sum_for_outcome > 1e-12) traverser_can_reach_this_outcome = true;
-             if (p == static_cast<size_t>(opponent_player) && current_reach_sum_for_outcome > 1e-12) opponent_can_reach_this_outcome = true;
+            if (p >= next_reach_probs.size()) continue;
+            const auto& range = pcm_->GetPlayerRange(p);
+            double current_reach_sum_for_outcome = 0.0;
+            size_t current_range_size = std::min(range.size(), next_reach_probs[p].size());
+            for (size_t h = 0; h < current_range_size; ++h) {
+                 if (core::Card::DoBoardsOverlap(range[h].GetBoardMask(), outcome_board_mask)) {
+                     next_reach_probs[p][h] = 0.0;
+                 }
+                 current_reach_sum_for_outcome += next_reach_probs[p][h];
+            }
+            if (p == static_cast<size_t>(traverser) && current_reach_sum_for_outcome > 1e-12) traverser_can_reach_this_outcome = true;
+            if (p == static_cast<size_t>(opponent_player) && current_reach_sum_for_outcome > 1e-12) opponent_can_reach_this_outcome = true;
         }
 
+        // --- Recurse if possible ---
         if (traverser_can_reach_this_outcome || opponent_can_reach_this_outcome) {
-             std::vector<double> child_utility = cfr_utility(child, next_reach_probs, traverser, iteration, next_board_mask, next_node_chance_reach);
-             if (total_expected_utility.size() == child_utility.size()) {
-                 for (size_t i = 0; i < total_expected_utility.size(); ++i) {
-                     total_expected_utility[i] += child_utility[i];
+            // Calculate utility for this specific outcome (thread-local result)
+            std::vector<double> child_utility = cfr_utility(child, next_reach_probs, traverser, iteration, next_board_mask, next_node_chance_reach);
+
+            // --- Manual Reduction using Critical Section ---
+            // Check size before entering critical section for efficiency
+            if (total_expected_utility.size() == child_utility.size()) {
+                // This critical section ensures only one thread at a time
+                // modifies the shared 'total_expected_utility' vector.
+                #pragma omp critical
+                {
+                    for (size_t util_idx = 0; util_idx < total_expected_utility.size(); ++util_idx) {
+                        total_expected_utility[util_idx] += child_utility[util_idx];
+                    }
+                } // --- End of critical section ---
+            } else if (!child_utility.empty()) {
+                 // Handle error (still use critical for safe output)
+                 #pragma omp critical
+                 {
+                    std::cerr << "[ERROR] Utility vector size mismatch from chance node child in parallel region. Thread: "
+                              << omp_get_thread_num() << ". Expected: " << total_expected_utility.size()
+                              << ", Got: " << child_utility.size() << std::endl;
                  }
-             } else if (!child_utility.empty()){
-                  std::cerr << "[ERROR] Utility vector size mismatch from chance node child." << std::endl;
-                  throw std::runtime_error("Utility vector size mismatch in chance node.");
-             }
+            }
         }
-    }
+    } // --- End of parallel loop ---
+
+    // Return the final accumulated utility vector
     return total_expected_utility;
 }
+
+
 
 
 // --- Showdown Node Helper ---
@@ -491,83 +510,138 @@ std::vector<double> PCfrSolver::cfr_showdown_node(
     std::shared_ptr<nodes::ShowdownNode> node,
     const std::vector<std::vector<double>>& reach_probs,
     int traverser,
-    uint64_t final_board_mask, double chance_reach)
+    uint64_t final_board_mask,
+    double chance_reach)
 {
-    /*
-    // --- DEBUG PRINT ---
-    std::cout << "  [DEBUG ShowdownNode] Iter: " << "N/A" // Iteration not directly passed here, but known from caller
-              << ", Trav: " << traverser
-              << ", FINAL Board for RRM: 0x" << std::hex << final_board_mask << std::dec
-              << " (Cards: " << core::Card::Uint64ToCards(final_board_mask).size() << ")"
-              << ", ChanceReach: " << chance_reach
-              << std::endl;
-    // --- END DEBUG PRINT ---
-    */
-
+    // --- Basic Setup ---
     int opponent_player = 1 - traverser;
-    const auto& traverser_range = pcm_->GetPlayerRange(traverser);
-    const auto& opponent_range = pcm_->GetPlayerRange(opponent_player);
+    const auto& traverser_range = pcm_->GetPlayerRange(traverser); // Read-only access
+    const auto& opponent_range = pcm_->GetPlayerRange(opponent_player); // Read-only access
     size_t traverser_hands = traverser_range.size();
     size_t opponent_hands = opponent_range.size();
 
+    // Initialize result vector
     std::vector<double> traverser_utility(traverser_hands, 0.0);
 
-    if (opponent_player < 0 || opponent_player >= static_cast<int>(reach_probs.size()) || (opponent_hands > 0 && opponent_hands != reach_probs[opponent_player].size())) {
-        //std::cerr << "[ERROR] Opponent range/reach_probs mismatch in cfr_showdown_node. Opponent: " << opponent_player
-          //        << ", Opponent Hands: " << opponent_hands
-            //      << ", Reach Probs size for opp: " << (opponent_player < static_cast<int>(reach_probs.size()) ? reach_probs[opponent_player].size() : -1)
-              //    << std::endl;
-        return traverser_utility;
-    }
+    // --- Pre-computation and Checks (Before Parallel Region) ---
 
+    // Check for potential size mismatches or invalid opponent index
+    if (opponent_player < 0 || static_cast<size_t>(opponent_player) >= reach_probs.size() || (opponent_hands > 0 && opponent_hands != reach_probs[opponent_player].size())) {
+        // std::cerr << "[WARN] cfr_showdown_node: Opponent range/reach_probs mismatch or invalid index. Opponent: " << opponent_player
+        //           << ", Opponent Hands: " << opponent_hands
+        //           << ", Reach Probs size for opp: " << (static_cast<size_t>(opponent_player) < reach_probs.size() ? reach_probs[opponent_player].size() : -1)
+        //           << ". Returning zero utility." << std::endl;
+        return traverser_utility; // Cannot proceed safely
+    }
+    // Check traverser reach_probs size as well
+     if (static_cast<size_t>(traverser) >= reach_probs.size() || (traverser_hands > 0 && traverser_hands != reach_probs[traverser].size())) {
+        // std::cerr << "[WARN] cfr_showdown_node: Traverser range/reach_probs mismatch or invalid index. Traverser: " << traverser
+        //           << ", Traverser Hands: " << traverser_hands
+        //           << ", Reach Probs size for trav: " << (static_cast<size_t>(traverser) < reach_probs.size() ? reach_probs[traverser].size() : -1)
+        //           << ". Returning zero utility." << std::endl;
+         return traverser_utility; // Cannot proceed safely
+     }
+
+
+    // Get river combos (potentially expensive, do it once)
+    // Assumes rrm_ is thread-safe for concurrent reads if called inside parallel region,
+    // but safer to call it outside.
     const auto& traverser_combos = rrm_->GetRiverCombos(traverser, traverser_range, final_board_mask);
     const auto& opponent_combos = rrm_->GetRiverCombos(opponent_player, opponent_range, final_board_mask);
 
+    // Get payoffs (read-only access is safe)
     const auto& p0_wins_payoffs = node->GetPayoffs(core::ComparisonResult::kPlayer1Wins);
     const auto& p1_wins_payoffs = node->GetPayoffs(core::ComparisonResult::kPlayer2Wins);
     const auto& tie_payoffs     = node->GetPayoffs(core::ComparisonResult::kTie);
 
+    // Create lookup maps *before* the parallel loop for efficiency
     std::unordered_map<size_t, size_t> oppo_orig_idx_to_river_idx;
+    oppo_orig_idx_to_river_idx.reserve(opponent_combos.size()); // Optional: reserve space
     for(size_t rc_idx = 0; rc_idx < opponent_combos.size(); ++rc_idx) {
         oppo_orig_idx_to_river_idx[opponent_combos[rc_idx].original_range_index] = rc_idx;
     }
 
-    for (const auto& trav_c : traverser_combos) {
-        size_t trav_orig_idx = trav_c.original_range_index;
-        if (trav_orig_idx >= traverser_utility.size() || (static_cast<size_t>(traverser) < reach_probs.size() && trav_orig_idx >= reach_probs[traverser].size())) continue;
-        if (static_cast<size_t>(traverser) >= reach_probs.size() || reach_probs[traverser][trav_orig_idx] < 1e-12) continue;
+    std::unordered_map<size_t, size_t> trav_orig_idx_to_river_idx;
+    trav_orig_idx_to_river_idx.reserve(traverser_combos.size()); // Optional: reserve space
+    for(size_t rc_idx = 0; rc_idx < traverser_combos.size(); ++rc_idx) {
+        trav_orig_idx_to_river_idx[traverser_combos[rc_idx].original_range_index] = rc_idx;
+    }
 
+    // --- Parallel Loop over Traverser's Hands ---
+    // Each thread calculates the utility for a subset of the traverser's original hands.
+    // Writes to traverser_utility[trav_orig_idx] are safe because each thread handles distinct indices.
+    #pragma omp parallel for schedule(dynamic) // schedule(dynamic) might help if opponent comparisons vary
+    for (size_t trav_orig_idx = 0; trav_orig_idx < traverser_hands; ++trav_orig_idx) {
+        // --- Per-Hand Calculation (Private within thread/iteration) ---
+
+        // Check if traverser can actually reach with this hand
+        // (Bounds check already done before parallel region)
+        if (reach_probs[traverser][trav_orig_idx] < 1e-12) {
+            continue; // Skip this hand if it has zero reach probability
+        }
+
+        // Find the corresponding RiverHandCombo for this original index
+        // This lookup uses the map created before the parallel region (read-only access)
+        auto trav_map_it = trav_orig_idx_to_river_idx.find(trav_orig_idx);
+        if (trav_map_it == trav_orig_idx_to_river_idx.end()) {
+            // This hand wasn't valid on the river (e.g., blocked by final board), utility remains 0.0
+            continue;
+        }
+        // Get the actual river combo data (read-only access to traverser_combos)
+        const auto& trav_c = traverser_combos[trav_map_it->second];
+
+        // Variables local to this iteration are private
         uint64_t traverser_private_mask = trav_c.private_cards.GetBoardMask();
-        double expected_value_for_hand = 0.0;
+        double expected_value_for_hand = 0.0; // Accumulator for this specific hand
 
+        // Inner loop: Iterate over opponent hands to calculate expected value
         for (size_t oppo_orig_idx = 0; oppo_orig_idx < opponent_hands; ++oppo_orig_idx) {
-            if (reach_probs[opponent_player][oppo_orig_idx] < 1e-12) continue;
+            // Check opponent reach probability (read-only access to reach_probs)
+            if (reach_probs[opponent_player][oppo_orig_idx] < 1e-12) {
+                continue; // Skip opponent hand if it has zero reach probability
+            }
 
+            // Get opponent's original hand data (read-only access to opponent_range)
             const core::PrivateCards& oppo_hand_orig = opponent_range[oppo_orig_idx];
             uint64_t opponent_private_mask = oppo_hand_orig.GetBoardMask();
 
+            // Check for card conflicts (blockers)
             if (core::Card::DoBoardsOverlap(traverser_private_mask, opponent_private_mask)) {
-                continue;
+                continue; // Skip conflicting hands
             }
 
-            auto map_it = oppo_orig_idx_to_river_idx.find(oppo_orig_idx);
-            if (map_it == oppo_orig_idx_to_river_idx.end()) {
+            // Find the opponent's corresponding RiverHandCombo
+            // (read-only access to oppo_orig_idx_to_river_idx map)
+            auto oppo_map_it = oppo_orig_idx_to_river_idx.find(oppo_orig_idx);
+            if (oppo_map_it == oppo_orig_idx_to_river_idx.end()) {
+                // Opponent hand invalid on river (blocked by final board), skip comparison
                 continue;
             }
-            const auto& oppo_c = opponent_combos[map_it->second];
+            // Get opponent river combo data (read-only access to opponent_combos)
+            const auto& oppo_c = opponent_combos[oppo_map_it->second];
 
+            // Determine payoff based on hand ranks
             double payoff_for_traverser = 0.0;
-            if (trav_c.rank < oppo_c.rank) {
-                payoff_for_traverser = (traverser == 0) ? p0_wins_payoffs[0] : p1_wins_payoffs[1];
-            } else if (oppo_c.rank < trav_c.rank) {
-                payoff_for_traverser = (traverser == 0) ? p1_wins_payoffs[0] : p0_wins_payoffs[1];
-            } else {
-                payoff_for_traverser = tie_payoffs[traverser];
+            if (trav_c.rank < oppo_c.rank) { // Traverser has better rank (lower is better)
+                payoff_for_traverser = (traverser == 0) ? p0_wins_payoffs[0] : p1_wins_payoffs[1]; // Payoff for P0 if P0 wins, Payoff for P1 if P1 wins
+            } else if (oppo_c.rank < trav_c.rank) { // Opponent has better rank
+                payoff_for_traverser = (traverser == 0) ? p1_wins_payoffs[0] : p0_wins_payoffs[1]; // Payoff for P0 if P1 wins, Payoff for P1 if P0 wins
+            } else { // Ranks are equal (tie)
+                payoff_for_traverser = tie_payoffs[traverser]; // Payoff for the traverser in case of a tie
             }
+
+            // Accumulate expected value, weighted by opponent's reach probability
             expected_value_for_hand += reach_probs[opponent_player][oppo_orig_idx] * payoff_for_traverser;
-        }
+
+        } // --- End inner loop (opponent hands) ---
+
+        // Write the final calculated utility for this specific hand to the shared result vector.
+        // This is safe because each thread writes to a unique index `trav_orig_idx`.
         traverser_utility[trav_orig_idx] = expected_value_for_hand * chance_reach;
-    }
+
+    } // --- End of parallel loop ---
+
+    // Return the completed utility vector
     return traverser_utility;
 }
 
@@ -579,44 +653,83 @@ std::vector<double> PCfrSolver::cfr_terminal_node(
     int traverser,
     double chance_reach)
 {
-    const auto& payoffs = node->GetPayoffs();
-    if (traverser < 0 || traverser >= static_cast<int>(payoffs.size())) {
+    // --- Basic Setup & Pre-computation (Before Parallel Region) ---
+
+    // Get payoffs for this terminal state
+    const auto& payoffs = node->GetPayoffs(); // Read-only access ok
+    if (traverser < 0 || static_cast<size_t>(traverser) >= payoffs.size()) {
          throw std::out_of_range("Traverser index out of bounds for payoffs vector in terminal node.");
     }
+    // Get the specific payoff for the player traversing the tree
     const double payoff_for_traverser = payoffs[traverser];
 
+    // Determine opponent and get player ranges (read-only access ok)
     int opponent_player = 1 - traverser;
     const auto& traverser_range = pcm_->GetPlayerRange(traverser);
     const auto& opponent_range = pcm_->GetPlayerRange(opponent_player);
     size_t traverser_hands = traverser_range.size();
     size_t opponent_hands = opponent_range.size();
 
+    // Initialize result vector
     std::vector<double> node_utility(traverser_hands, 0.0);
 
-    if (opponent_player < 0 || opponent_player >= static_cast<int>(reach_probs.size()) || (opponent_hands > 0 && opponent_hands != reach_probs[opponent_player].size()) ) {
-        // std::cerr << "[ERROR] Opponent range/reach_probs mismatch in cfr_terminal_node. Opponent: " << opponent_player
-          //        << ", Opponent Hands: " << opponent_hands
-            //      << ", Reach Probs size for opp: " << (opponent_player < static_cast<int>(reach_probs.size()) ? reach_probs[opponent_player].size() : -1)
-              //    << std::endl;
-         return node_utility;
+    // --- Safety Checks (Before Parallel Region) ---
+    // Check for potential size mismatches or invalid opponent index
+    if (opponent_player < 0 || static_cast<size_t>(opponent_player) >= reach_probs.size() || (opponent_hands > 0 && opponent_hands != reach_probs[opponent_player].size()) ) {
+        // std::cerr << "[WARN] cfr_terminal_node: Opponent range/reach_probs mismatch or invalid index. Opponent: " << opponent_player
+        //           << ", Opponent Hands: " << opponent_hands
+        //           << ", Reach Probs size for opp: " << (static_cast<size_t>(opponent_player) < reach_probs.size() ? reach_probs[opponent_player].size() : -1)
+        //           << ". Returning zero utility." << std::endl;
+         return node_utility; // Cannot proceed safely
     }
+     // Check traverser reach_probs size as well
+     if (static_cast<size_t>(traverser) >= reach_probs.size() || (traverser_hands > 0 && traverser_hands != reach_probs[traverser].size())) {
+        // std::cerr << "[WARN] cfr_terminal_node: Traverser range/reach_probs mismatch or invalid index. Traverser: " << traverser
+        //           << ", Traverser Hands: " << traverser_hands
+        //           << ", Reach Probs size for trav: " << (static_cast<size_t>(traverser) < reach_probs.size() ? reach_probs[traverser].size() : -1)
+        //           << ". Returning zero utility." << std::endl;
+         return node_utility; // Cannot proceed safely
+     }
 
+
+    // --- Parallel Loop over Traverser's Hands ---
+    // Each thread calculates the utility for a subset of the traverser's hands.
+    // Writes to node_utility[h_i] are safe because each thread handles distinct indices.
+    #pragma omp parallel for schedule(dynamic)
     for (size_t h_i = 0; h_i < traverser_hands; ++h_i) {
-        if (static_cast<size_t>(traverser) >= reach_probs.size() || h_i >= reach_probs[traverser].size() || reach_probs[traverser][h_i] < 1e-12) {
-            continue;
+        // --- Per-Hand Calculation (Private within thread/iteration) ---
+
+        // Check if traverser can actually reach with this hand
+        // (Bounds check already done before parallel region)
+        if (reach_probs[traverser][h_i] < 1e-12) {
+            continue; // Skip this hand if it has zero reach probability
         }
+
+        // Get traverser's hand mask (read-only access to traverser_range)
         uint64_t traverser_mask = traverser_range[h_i].GetBoardMask();
+        // Accumulator for the sum of reach probabilities of non-conflicting opponent hands
         double compatible_opponent_reach_sum = 0.0;
+
+        // Inner loop: Iterate over opponent hands
         for (size_t h_j = 0; h_j < opponent_hands; ++h_j) {
+            // Get opponent's hand mask (read-only access to opponent_range)
             uint64_t opponent_mask = opponent_range[h_j].GetBoardMask();
+
+            // Check for card conflicts (blockers)
             if (!core::Card::DoBoardsOverlap(traverser_mask, opponent_mask)) {
-                if (static_cast<size_t>(opponent_player) < reach_probs.size() && h_j < reach_probs[opponent_player].size()) { // Bounds check
-                   compatible_opponent_reach_sum += reach_probs[opponent_player][h_j];
-                }
+                // If no conflict, add opponent's reach probability to the sum
+                // (Bounds check already done before parallel region)
+                compatible_opponent_reach_sum += reach_probs[opponent_player][h_j];
             }
-        }
+        } // --- End inner loop (opponent hands) ---
+
+        // Calculate and store the utility for this traverser hand.
+        // Write is safe as h_i is unique per thread/iteration.
         node_utility[h_i] = payoff_for_traverser * compatible_opponent_reach_sum * chance_reach;
-    }
+
+    } // --- End of parallel loop ---
+
+    // Return the completed utility vector
     return node_utility;
 }
 

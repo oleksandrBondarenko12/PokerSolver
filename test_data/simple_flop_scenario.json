@@ -2,8 +2,8 @@
     "test_case_name": "SimpleFlop_OOPBets_IPCalls",
     "description": "A basic scenario on the flop where OOP makes a pot-sized bet and IP calls.",
     "solver_config": {
-      "iterations": 10000000,
-      "threads": 1
+      "iterations": 100000,
+      "threads": 8
     },
     "game_rule": {
       "starting_round": "Flop",
@@ -16,7 +16,7 @@
         "bb": 2.0
       },
       "effective_stack": 100.0,
-      "raise_limit_per_street": 3,
+      "raise_limit_per_street": 1,
       "all_in_threshold_ratio": 0.67,
       "initial_board": ["Qs", "Jh", "2h"],
       "building_settings": {
@@ -24,43 +24,43 @@
           "bet_sizes_percent": [50],
           "raise_sizes_percent": [60],
           "donk_sizes_percent": [],
-          "allow_all_in": true
+          "allow_all_in": false
         },
         "turn_ip": {
           "bet_sizes_percent": [50],
           "raise_sizes_percent": [60],
           "donk_sizes_percent": [],
-          "allow_all_in": true
+          "allow_all_in": false
         },
         "river_ip": {
           "bet_sizes_percent": [50],
           "raise_sizes_percent": [60],
           "donk_sizes_percent": [],
-          "allow_all_in": true
+          "allow_all_in": false
         },
         "flop_oop": {
           "bet_sizes_percent": [50],
-          "raise_sizes_percent": [50, 100],
+          "raise_sizes_percent": [50],
           "donk_sizes_percent": [],
-          "allow_all_in": true
+          "allow_all_in": false
         },
         "turn_oop": {
           "bet_sizes_percent": [50],
           "raise_sizes_percent": [60],
-          "donk_sizes_percent": [50],
-          "allow_all_in": true
+          "donk_sizes_percent": [],
+          "allow_all_in": false
         },
         "river_oop": {
           "bet_sizes_percent": [50],
-          "raise_sizes_percent": [60, 100],
-          "donk_sizes_percent": [50],
-          "allow_all_in": true
+          "raise_sizes_percent": [60],
+          "donk_sizes_percent": [],
+          "allow_all_in": false
         }
       }
     },
     "player_ranges": {
-      "ip": "AA,KK,QQ,JJ,TT,99:0.75",
-      "oop": "QQ:0.5,JJ:0.75,TT,99,88,77"
+      "ip": "AA,KK,KJs,JJ,TT,99",
+      "oop": "QQ,JJ,AQs"
     },
     "expected_output_file": "golden_flop_oop_bets_ip_calls.json"
   }

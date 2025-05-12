@@ -27,7 +27,7 @@ endif()
 
 
 find_package(Threads REQUIRED)
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
 
 # --- Define Poker Solver Core Library ---
 add_library(PokerSolverCore
@@ -69,11 +69,21 @@ target_include_directories(PokerSolverCore PUBLIC
 )
 # For std::filesystem
 target_link_libraries(PokerSolverCore PRIVATE Threads::Threads) # Threads might not be needed for filesystem
+
+# Filesystem linking (keep as is)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
-    target_link_libraries(PokerSolverCore PRIVATEstdc++fs)
+    target_link_libraries(PokerSolverCore PRIVATE stdc++fs)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7) # Or appropriate Clang version
     target_link_libraries(PokerSolverCore PRIVATE c++experimental)
 endif()
+
+# --- OpenMP Section ---
+# Use the flags found by find_package(OpenMP) - should work with Homebrew's Clang
+target_compile_options(PokerSolverCore PRIVATE ${OpenMP_CXX_FLAGS})
+
+# Link the library using the imported target found by find_package
+target_link_libraries(PokerSolverCore PUBLIC OpenMP::OpenMP_CXX)
+# --- End OpenMP Section ---
 
 
 # --- Google Test Integration ---
@@ -108,7 +118,7 @@ add_executable(poker_solver_tests
 # Link your tests against Google Test AND your core library
 target_link_libraries(poker_solver_tests PRIVATE
     gtest_main
-    PokerSolverCore
+    PokerSolverCore # This will inherit the OpenMP flags and linking from PokerSolverCore
 )
 # For std::filesystem in tests if needed (e.g. in test_scenario_loader.cpp)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
