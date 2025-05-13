@@ -29,6 +29,25 @@ endif()
 find_package(Threads REQUIRED)
 find_package(OpenMP REQUIRED)
 
+# +++ Additions for Qt UI +++
+# Find Qt6 package and its components.
+# Adjust components if you use more Qt modules (e.g., Network, Svg).
+find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core)
+
+# Enable automatic moc, uic, and rcc handling.
+# CMAKE_AUTOMOC: Enables automatic meta-object code generation.
+# CMAKE_AUTOUIC: Enables automatic user interface code generation from .ui files (if any).
+# CMAKE_AUTORCC: Enables automatic resource code generation from .qrc files.
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+# Ensure that CMake finds the Qt6 tools (moc, uic, rcc).
+# This is often handled automatically if Qt6 is in your PATH or CMAKE_PREFIX_PATH.
+# If you have issues, you might need to set CMAKE_PREFIX_PATH to your Qt6 installation directory.
+# Example: set(CMAKE_PREFIX_PATH "/path/to/your/Qt/6.x.y/arch")
+# +++++++++++++++++++++++++++
+
 # --- Define Poker Solver Core Library ---
 add_library(PokerSolverCore
     # Add ALL your core source files here
@@ -85,6 +104,35 @@ target_compile_options(PokerSolverCore PRIVATE ${OpenMP_CXX_FLAGS})
 target_link_libraries(PokerSolverCore PUBLIC OpenMP::OpenMP_CXX)
 # --- End OpenMP Section ---
 
+# +++ Define the UI Executable +++
+# List your Qt resource file(s) here.
+# The README mentions "resources.qrc" in the root.
+# If dark.qss is not included via resources.qrc but compiled directly (unlikely for Qt),
+# you might need to add it here, but typically it's part of the .qrc.
+set(UI_RESOURCE_FILES
+    resources.qrc  # Assuming this is in the root directory of your project
+)
+
+add_executable(poker_solver_ui
+    main.cpp
+    MainWindow.cpp
+    MainWindow.h # Add header files that need MOC processing if not automatically detected
+    RangeSelector.cpp
+    RangeSelector.h # Add header files that need MOC processing
+    StrategyExplorer.cpp
+    StrategyExplorer.h # Add header files that need MOC processing
+    ${UI_RESOURCE_FILES} # Include the .qrc file
+)
+
+# Link the UI executable against Qt6 and your PokerSolverCore library
+target_link_libraries(poker_solver_ui PRIVATE
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Core
+    PokerSolverCore # Link against your core logic
+)
+# ++++++++++++++++++++++++++++++
+
 
 # --- Google Test Integration ---
 set(INSTALL_GTEST OFF CACHE BOOL "Disable installing gtest")
@@ -110,7 +158,7 @@ add_executable(poker_solver_tests
     tests/discounted_cfr_trainable_test.cpp
     tests/game_tree_test.cpp
     tests/test_scenario_loader.cpp
-    tests/pcfr_solver_integration_test.cpp # <<<< ADD YOUR NEW INTEGRATION TEST FILE HERE
+    tests/pcfr_solver_integration_test.cpp
     # Add your test scenario loader .cpp file if it's separate
     # tests/test_scenario_loader.cpp
 )
